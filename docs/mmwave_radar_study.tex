@@ -1,0 +1,541 @@
+% ---------------------------------------------------------------------------
+% Skyren — mmWave Radar Study
+% Build:  lualatex mmwave_radar_study.tex   (dvakrát)
+% ---------------------------------------------------------------------------
+\documentclass[czech]{skyren}
+
+\skyrendoctitle{mmWave Radar Study}
+\skyrenstudytype{TECHNICKÁ STUDIE}
+\skyrentitle{Radar v pásmu mm vln jako dálkoměr pro rychlé cíle}
+\skyrensubtitle{Proč optické měření na zadání 240\,m/s nestačí a co z levného
+24GHz FMCW front-endu jde dostat}
+
+\skyrenaudience{Vývojář elektroniky nebo konstruktér, který radar dosud
+nedělal. Předpokládá se znalost embedded návrhu a základů zpracování signálu;
+radarové principy, pojmy i vzorce jsou vysvětlené od začátku. Expert najde
+konkrétní čísla, díly a důvody volby v~dílech II a~III.}
+
+\skyrenmeta{%
+  \metaitem{Projekt}{mmWave Radar}\hfill
+  \metaitem{Revize}{R1}\hfill
+  \metaitem{Datum}{Září 2026}\hfill
+  \metaitem[0.2]{Klasifikace}{Interní}%
+}
+
+\begin{document}
+
+\skyrenmaketitle
+
+\begin{skyrensummary}
+Pro měření vzdálenosti při vzájemné rychlosti 240\,m/s s~přesností na desítky
+centimetrů vychází jako nejlevnější schůdná cesta \textbf{single-chirp FMCW
+radar v~pásmu 24\,GHz} --- ne optika a ne 77\,GHz. Rozhodujícím parametrem
+není přesnost jednoho měření, ale vzorkovací frekvence a integrační čas;
+na tom padá drtivá většina dostupných senzorů. Závěr má jednu otevřenou
+podmínku: \textbf{není určený požadovaný dosah}, a právě ten rozhoduje mezi
+hotovým modulem za jednotky tisíc korun a vlastním front-endem.
+\end{skyrensummary}
+
+\begin{skyrennote}[Jak číst tento dokument]
+\textbf{Boxy se štítkem} označují typ sdělení: \textsc{poznámka} kontext
+navíc, \textsc{úskalí} častou chybu, \textsc{příklad} konkrétní vstup
+a~výstup, \textsc{zkus si} otázku k~zamyšlení. \textsc{Na jeden pohled}
+otevírá díl, \textsc{co z~toho plyne} ho uzavírá. \skyrencmd{Mono písmo}
+značí hodnotu nebo označení dílu.
+\end{skyrennote}
+
+\tableofcontents
+\vspace{10mm}
+
+% ===========================================================================
+\skyrenchapter[\skyrenmodeexplanation]{Východiska}{Proč jsme opustili optiku}
+% ===========================================================================
+
+\begin{skyrenglance}
+Rozebraný Parkside PLEM 20 A4 je fázový měřák s~uzavřeným ASICem --- slepá
+ulička. Ale skutečný důvod, proč optika odpadla, přišel až se zadáním
+240\,m/s: na té rychlosti přestává být limitem přesnost a stává se jím
+vzorkovací frekvence.
+\end{skyrenglance}
+
+\section{Co jsme rozebrali}
+\skyrenlead{Teardown laserového dálkoměru Parkside a důvod, proč se v~něm
+nedá pokračovat.}
+
+Výchozím bodem studie byl rozebraný dálkoměr \skyrencmd{Parkside PLEM 20 A4}
+(model \skyrencmd{HG06724}, výroba 2020/06). Měřicí modul je samostatná deska
+zhruba 13\,$\times$\,25\,mm s~označením \skyrencmd{V02}: laserová dioda
+v~pouzdře TO, přijímací lavinová fotodioda ve~stíněné komoře, krystal
+a~jeden ASIC v~pouzdře QFN s~potiskem \skyrencmd{LGSM4 / N1PA45.00-24}.
+K~hlavní desce vede osmipinový plochý spoj.
+
+Přístroj \skyrenterm{není} dToF. Neměří dobu letu pulzu, ale
+\skyrenterm{fázový posuv} spojitě modulovaného svazku --- proto ten krystal
+a~směšovač. Celý měřicí řetězec je uvnitř ASICu, který nese zákaznické
+označení bez veřejného datového listu.
+
+\begin{skyrennote}[Proč je uzavřený ASIC konec cesty]
+Zbývaly tři možnosti: odposlechnout plochý spoj a~mluvit na modul vlastním
+mikrokontrolérem, vyčíst kalibrační paměť, nebo se napíchnout na analogový
+řetězec za fotodiodou a~počítat fázi sám. První dvě dají kontrolu nad
+\emph{rozhraním}, ne nad \emph{měřením} --- rate i integrační čas zůstávají
+zadrátované v~ASICu. Třetí je reálná, ale znamená zrekonstruovat modulační
+frekvence, které si čip generuje interně. Ani jedna z~cest nevede k~zadání
+níže.
+\end{skyrennote}
+
+\section{Zadání: 240\,m/s a desítky centimetrů}
+\skyrenlead{Jak se z~rychlosti stane požadavek na vzorkovací frekvenci.}
+
+Zadání zní: měřit vzdálenost při vzájemné rychlosti 240\,m/s s~přesností
+řádu desítek centimetrů. Klíčový převod je triviální --- dráha uražená mezi
+dvěma vzorky:
+
+\begin{skyrentable}{3}{Dráha mezi dvěma vzorky při rychlosti 240\,m/s.
+Poslední sloupec je nejistota polohy, kterou nelze odstranit přesnějším
+měřením, jen vyšší frekvencí.}
+\skyrenth{Vzorkovací frekvence} & \skyrenth{Perioda} & \skyrenth{Dráha mezi vzorky} \\
+\midrule
+100\,Hz & 10\,ms & 2,40\,m \\
+500\,Hz & 2\,ms & 48\,cm \\
+1\,kHz & 1\,ms & 24\,cm \\
+3\,kHz & 333\,\textmu s & 8\,cm \\
+20\,kHz & 50\,\textmu s & 1,2\,cm \\
+\end{skyrentable}
+
+Ze zadání „desítky centimetrů“ tedy plyne dolní mez \textbf{zhruba 1\,kHz}.
+Se senzorem na 100\,Hz máte mezi vzorky 2,4\,m nejistoty bez ohledu na to,
+že jednotlivé měření je přesné na tři centimetry.
+
+Z~toho vyplývají tři odvozené požadavky, které většina katalogových senzorů
+nesplní:
+
+\begin{enumerate}
+\item \textbf{Vzorkovací frekvence nejméně 1\,kHz}, s~rezervou na průměrování
+      raději víc.
+\item \textbf{Integrační čas do 1\,ms.} Senzory, které akumulují histogram
+      přes desítky milisekund, za tu dobu ujedou několik metrů a~histogram se
+      rozmaže. Tím vypadávají všechny vícezónové dToF čipy.
+\item \textbf{Latence celé cesty do 2--3\,ms.} Měření staré 5\,ms je
+      1,2\,m mimo. Do rozpočtu latence patří i~sériová linka a~filtr, ne jen
+      senzor.
+\end{enumerate}
+
+\begin{skyrengotcha}[Přesnost není to, co vás zastaví]
+Nejčastější chyba při výběru je porovnávat senzory podle údaje
+„$\pm$\,3\,cm“. Ten popisuje rozptyl jednoho měření za ideálních podmínek.
+Při 240\,m/s je ale dominantní chybou stáří vzorku, ne jeho rozptyl.
+Datové listy tenhle údaj neuvádějí, protože závisí na vaší rychlosti ---
+musíte si ho spočítat sami z~vzorkovací frekvence a~latence.
+\end{skyrengotcha}
+
+\section{Proč ani dToF nevyhrál}
+\skyrenlead{Jediný optický senzor, který zadání splní, a~proč to nakonec
+nestačí.}
+
+Přímé měření doby letu (dToF) bylo přirozeným dalším krokem. Průmyslová
+nabídka se ale na požadavku 1\,kHz smrskne prakticky na jediný díl:
+\skyrencmd{LightWare SF30/D} --- katalogově 0,2 až 200\,m s~konfigurovatelnou
+frekvencí až 20\,000 měření za sekundu. Technicky zadání splní s~rezervou.
+
+Všechno ostatní padá na frekvenci: vícezónové čipy ST \skyrencmd{VL53Lxx}
+běží na 50--60\,Hz, \skyrencmd{ams TMF8828} na jednotkách až desítkách Hz,
+moduly \skyrencmd{Benewake TF-Luna} a~\skyrencmd{TFmini-S} na 100\,Hz.
+\skyrencmd{Broadcom AFBR-S50MV85G} sice zvládne až 3000 snímků za sekundu
+a~má otevřené API, ale dosah kolem 10\,metrů dá při 240\,m/s jen zhruba
+42\,ms času --- použitelné pro měření k~zemi, ne dopředu.
+
+Zůstane tedy jeden díl, v~ceně, která u~SF30/D odpovídá spíš měřicí technice
+než součástce. To je moment, kdy se vyplatí změnit princip, ne dodavatele.
+
+\begin{skyrentakeaway}
+Optika na tomhle zadání neselhala na přesnosti ani na dosahu, ale na
+kombinaci frekvence a~ceny. Jediný vyhovující optický díl stojí řádově víc
+než celý radarový front-end, který totéž zvládne --- a~navíc nevidí do
+prachu a~protisvětla.
+\end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenchapter[\skyrenmodeexplanation]{Princip}{Jak FMCW měří vzdálenost}
+% ===========================================================================
+
+\begin{skyrenglance}
+FMCW převádí vzdálenost na frekvenci: vyšle se kmitočtová rampa, přijatý
+odraz je zpožděná kopie, a~jejich rozdíl je přímo úměrný vzdálenosti.
+Jedna rampa plus jedna FFT stačí --- a~tím se z~radaru stane levná úloha.
+\end{skyrenglance}
+
+\section{Chirp a rozdílová frekvence}
+\skyrenlead{Základní mechanismus, ze kterého plyne všechno ostatní.}
+
+\skyrenterm{FMCW} (frequency-modulated continuous wave) vysílá spojitý signál,
+jehož kmitočet lineárně roste --- takové rampě se říká \skyrenterm{chirp}.
+Odraz od cíle dorazí zpožděný o~dobu letu $\tau = 2R/c$. Protože vysílač mezitím
+stoupl v~kmitočtu dál, je mezi vyslaným a~přijatým signálem rozdíl. Směšovač
+z~nich udělá \skyrenterm{rozdílovou frekvenci} $f_\mathrm{b}$ (angl. \emph{beat
+frequency}), a~ta je vzdálenosti přímo úměrná.
+
+\begin{skyrenfigure}{Princip FMCW. Vyslaný chirp (plná čára) stoupá lineárně;
+odraz (čárkovaně) je jeho kopie posunutá o~dobu letu $\tau$. Svislá vzdálenost
+mezi čarami je rozdílová frekvence $f_\mathrm{b}$ --- konstantní po celou dobu
+rampy, a~přímo úměrná vzdálenosti cíle.}{fig:fmcw}
+\begin{tikzpicture}[x=1.2mm, y=1.2mm, line width=1pt,
+  every node/.style={font=\fontsize{8}{10}\selectfont}]
+
+  % osy
+  \draw[skyrenNeutral600, line width=0.6pt, ->] (0,0) -- (78,0)
+    node[anchor=north east] {čas};
+  \draw[skyrenNeutral600, line width=0.6pt, ->] (0,0) -- (0,32)
+    node[anchor=south west] {kmitočet};
+
+  % vyslany chirp
+  \draw[skyrenInk] (0,2) -- (30,26);
+  \draw[skyrenInk] (30,2) -- (60,26);
+
+  % prijaty odraz, zpozdeny o tau = 7
+  \draw[skyrenNeutral600, dashed, line width=0.9pt] (7,2) -- (37,26);
+  \draw[skyrenNeutral600, dashed, line width=0.9pt] (37,2) -- (60,20.4);
+
+  % beat marker
+  \draw[skyrenRed, line width=1pt] (22,13.6) -- (22,19.6);
+  \node[anchor=west, skyrenRed] at (23.5,16.6) {$f_\mathrm{b}$};
+
+  % tau marker
+  \draw[skyrenNeutral600, line width=0.6pt] (0,-4) -- (7,-4);
+  \draw[skyrenNeutral600, line width=0.6pt] (0,-2.5) -- (0,-5.5);
+  \draw[skyrenNeutral600, line width=0.6pt] (7,-2.5) -- (7,-5.5);
+  \node[anchor=north] at (3.5,-5) {$\tau$};
+
+  % sirka pasma
+  \draw[skyrenNeutral600, line width=0.6pt] (66,2) -- (66,26);
+  \draw[skyrenNeutral600, line width=0.6pt] (64.5,2) -- (67.5,2);
+  \draw[skyrenNeutral600, line width=0.6pt] (64.5,26) -- (67.5,26);
+  \node[anchor=west] at (68,14) {$B$};
+
+  % legenda
+  \draw[skyrenInk] (0,-13) -- (7,-13);
+  \node[anchor=west] at (8.5,-13) {vyslaný chirp};
+  \draw[skyrenNeutral600, dashed, line width=0.9pt] (34,-13) -- (41,-13);
+  \node[anchor=west] at (42.5,-13) {přijatý odraz};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Na obr.~\ref{fig:fmcw} si všimněte dvou věcí. Za prvé, rozdíl mezi čarami je
+po celou rampu konstantní --- proto stačí jednu rampu naFFTovat a~odečíst
+polohu vrcholu. Za druhé, jediné, co určuje rozlišení, je celková výška rampy,
+tedy šířka přeladění $B$.
+
+\section{Kolik centimetrů z~toho vypadne}
+\skyrenlead{Převod šířky pásma na rozlišení a~přesnost, s~čísly pro pásmo ISM.}
+
+Rozlišovací schopnost FMCW radaru závisí jen na šířce přeladění:
+\[
+\Delta R = \frac{c}{2B}
+\]
+V~pásmu ISM \skyrencmd{24,00--24,25\,GHz} je k~dispozici $B = 250$\,MHz, což dává
+
+\[
+\Delta R = \frac{3\cdot10^{8}}{2 \cdot 250\cdot10^{6}} = 0{,}60\ \mathrm{m}
+\]
+
+Šedesát centimetrů je velikost \skyrenterm{rozlišovací buňky} --- vzdálenost,
+na které radar rozliší dva samostatné cíle. \emph{Přesnost} určení polohy
+jednoho cíle je ale výrazně lepší: interpolací vrcholu FFT (parabolickou
+nebo těžištěm) se běžně dostanete na desetinu buňky, tedy zhruba
+\textbf{5 až 10\,cm}.
+
+\begin{skyrenexample}
+Chirp dlouhý 100\,\textmu s, přeladění 250\,MHz, jeden cíl ve~vzdálenosti
+40\,m. Doba letu $\tau = 2\cdot40/3\cdot10^{8} = 267$\,ns. Sklon rampy
+$S = 250\,\mathrm{MHz}/100\,\mathrm{\mu s} = 2{,}5\cdot10^{12}$\,Hz/s,
+rozdílová frekvence $f_\mathrm{b} = S\tau = 667$\,kHz. Tu zpracuje běžný
+ADC v~mikrokontroléru. Při 100\,\textmu s na chirp vychází vzorkovací
+frekvence 10\,kHz --- řádově nad požadovanou 1\,kHz.
+\end{skyrenexample}
+
+Zadání „desítky centimetrů“ je tedy splněné s~rezervou v~nejlevnějším
+dostupném pásmu. To je hlavní důvod, proč studie končí u~24\,GHz.
+
+\section{Proč 24\,GHz poráží 77\,GHz}
+\skyrenlead{Kontraintuitivní výsledek: levnější pásmo je pro rychlé cíle
+zároveň vhodnější.}
+
+U~automobilových radarů je standardem pásmo 76--81\,GHz, protože nabízí
+$B$ až 5\,GHz a~tím rozlišení kolem 3\,cm. Pro naše zadání ale rozhoduje jiný
+parametr --- \skyrenterm{maximální jednoznačná rychlost}, tedy nejvyšší
+rychlost, kterou radar změří bez toho, aby se mu fáze „přetočila“:
+\[
+v_\mathrm{max} = \frac{\lambda}{4 T_\mathrm{c}}
+\]
+kde $\lambda$ je vlnová délka a~$T_\mathrm{c}$ perioda opakování chirpů.
+Pro požadovaných 240\,m/s z~toho plyne:
+
+\begin{skyrentable}{4}{Požadavek na periodu chirpů pro jednoznačné měření
+rychlosti 240\,m/s. Nižší pásmo požadavek výrazně uvolňuje.}
+\skyrenth{Pásmo} & \skyrenth{$\lambda$} & \skyrenth{Nutné $T_\mathrm{c}$} & \skyrenth{Náročnost} \\
+\midrule
+77\,GHz & 3,9\,mm & $\leq$ 4,1\,\textmu s & na hraně \\
+60\,GHz & 5,0\,mm & $\leq$ 5,2\,\textmu s & na hraně \\
+24\,GHz & 12,4\,mm & $\leq$ 12,9\,\textmu s & pohodlné \\
+\end{skyrentable}
+
+\begin{skyrennote}[Proč nižší pásmo pomáhá]
+Doppler měří radar z~fázového posuvu mezi po sobě jdoucími chirpy. Aby byl
+výsledek jednoznačný, nesmí se fáze mezi dvěma chirpy otočit o~víc než
+půl otáčky. Delší vlna znamená, že stejný posun cíle udělá menší část otáčky
+--- a~tím se strop jednoznačné rychlosti zvedne. Levnější pásmo je tady
+zároveň to technicky vhodnější, což se v~elektronice nestává často.
+\end{skyrennote}
+
+\section{Doppler ale vůbec nepotřebujeme}
+\skyrenlead{Zjednodušení, které srazí výpočetní nároky o~řád.}
+
+Předchozí sekce řeší problém, který v~našem zadání nemusí vzniknout. Zadání
+zní \emph{měřit vzdálenost}, ne rychlost. A~vzdálenost vypadne z~jediné rampy:
+naFFTovat mezifrekvenci, najít vrchol, přepočítat na metry. Žádné koherentní
+sekvence chirpů, žádná dvourozměrná FFT, a~\textbf{problém nejednoznačné
+rychlosti se vůbec neobjeví}.
+
+Vysoká rychlost způsobí jen tzv. \skyrenterm{range-Doppler coupling} --- malý
+systematický posuv naměřené vzdálenosti úměrný rychlosti, který jde při
+známé rychlosti dopočítat, a~při strmé rampě je i~tak malý.
+
+Praktický dopad je zásadní: výpočetní nárok klesne z~„mmWave SDK a~signálový
+procesor“ na \textbf{256bodovou FFT na běžném mikrokontroléru}. Tím se otevírá
+varianta C ve~výčtu v~díle~III.
+
+\begin{skyrentakeaway}
+FMCW dává vzdálenost z~jedné rampy a~jedné FFT. V~pásmu 24\,GHz to znamená
+rozlišovací buňku 60\,cm, po interpolaci přesnost pod 10\,cm, a~vzorkovací
+frekvenci v~jednotkách až desítkách kHz --- tedy celé zadání, na hardwaru
+řádu stokorun až tisícikorun.
+\end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenchapter[\skyrenmodereference]{Varianty}{Co se dá koupit}
+% ===========================================================================
+
+\begin{skyrenglance}
+Čtyři cenové hladiny od hotového modulu s~dokumentovaným protokolem po
+vlastní front-end. Zároveň seznam dílů, které vypadají levně, ale na tomhle
+zadání nefungují.
+\end{skyrenglance}
+
+\section{Čtyři hladiny}
+\skyrenlead{Přehled variant seřazený podle poměru cena / vlastní práce.}
+
+\begin{skyrentable}{4}{Varianty řešení. Ceny jsou orientační k~září 2026
+a~nebyly ověřeny poptávkou; dosahy jsou katalogové údaje výrobců, neměřené.}
+\skyrenth{Varianta} & \skyrenth{Cena} & \skyrenth{Vlastní práce} & \skyrenth{Poznámka} \\
+\midrule
+\textbf{A} --- NanoRadar NRA24 / MR72 &
+  1--3 tis.\,Kč & žádná RF práce & 24\,GHz, CAN + sériová, protokol veřejně
+  zdokumentovaný, podpora ArduPilot/PX4 \\
+\textbf{B} --- vyřazený automotive
+  (Continental ARS408, Delphi ESR) &
+  1--4 tis.\,Kč & integrace CAN & největší dosah za nejmíň peněz, existují
+  otevřené ovladače \\
+\textbf{C} --- vlastní front-end
+  (Infineon BGT24LTR11 / BGT24MTR11) &
+  0,5--1 tis.\,Kč BOM & RF deska + DSP & plná kontrola, žádný cizí firmware
+  mezi vámi a~daty \\
+\textbf{D} --- TI IWR6843AOP &
+  čip $\approx$\,0,6 tis.\,Kč, vývojový kit $\approx$\,7 tis.\,Kč &
+  konfigurace chirpů & anténa v~pouzdře, odpadá návrh anténního pole \\
+\end{skyrentable}
+
+Varianta \textbf{A} je nejrychlejší cesta k~datům: modul má hotový firmware
+a~zveřejněný protokol, takže se dá ověřit geometrie a~chování odrazů dřív,
+než padne rozhodnutí o~finálním řešení.
+
+Varianta \textbf{B} nabízí největší dosah, ale nese dvě rizika. Za prvé je
+to 77\,GHz, takže měření rychlosti se při 240\,m/s přetočí (vzdálenost
+zůstává správně). Za druhé má firmware zabudované automobilové filtry
+věrohodnosti, které cíl mimo očekávaný rozsah rychlostí mohou zahodit ---
+a~dozvíte se to až z~naměřených dat.
+
+\begin{skyrengotcha}[Levné moduly, které tohle zadání nezvládnou]
+Moduly pro detekci osob (\skyrencmd{HLK-LD2410}, \skyrencmd{HLK-LD2450},
+podobné 24GHz „presence“ čipy za pár set korun) mají firmware laděný na
+chodce: dopplerovské filtry odfiltrují všechno rychlejší, obnovovací
+frekvence je 10--20\,Hz a~dosah jednotky metrů. Dopplerovské moduly
+\skyrencmd{HB100} a~\skyrencmd{CDM324} za desetikoruny jsou CW --- dají
+\emph{rychlost}, nikoli vzdálenost. Absolutní vzdálenost z~nich nedostanete
+žádným zpracováním.
+\end{skyrengotcha}
+
+\section{O~dosahu rozhoduje anténa, ne modul}
+\skyrenlead{Kam investovat, když chcete dosah: zisk antény má čtvrtou
+mocninu na své straně.}
+
+V~radarové rovnici klesá přijatý výkon se čtvrtou mocninou vzdálenosti.
+Obráceně to znamená, že zisk antény se do dosahu promítá mnohem silněji než
+volba čipu: \textbf{každých 6\,dB zisku navíc znamená zhruba 1,4násobný
+dosah}, a~to na obou stranách, protože táž anténa vysílá i~přijímá.
+
+Tady hraje zadání pro nás. Měříme na jeden bod, nepotřebujeme široké zorné
+pole --- a~úzký svazek je přesně to, co dává vysoký zisk. Slušné anténní pole
+nebo malá čočka udělá pro dosah víc než přechod na modul o~třídu výš.
+
+\begin{skyrenfigure}{Rozhodovací strom pro volbu varianty. Vstupem je
+požadovaný dosah, který zatím není určený --- proto studie končí u~doporučení,
+ne u~objednávky.}{fig:strom}
+\begin{tikzpicture}[x=1mm, y=1mm, line width=1pt,
+  every node/.style={font=\fontsize{8}{10}\selectfont}]
+
+  \draw[skyrenInk] (-17,0) rectangle (17,10);
+  \node at (0,5) {Jaký dosah potřebuješ?};
+
+  \draw[skyrenNeutral600, line width=0.6pt] (0,0) -- (0,-6);
+  \draw[skyrenNeutral600, line width=0.6pt] (-40,-6) -- (40,-6);
+  \draw[skyrenNeutral600, line width=0.6pt] (-40,-6) -- (-40,-13);
+  \draw[skyrenNeutral600, line width=0.6pt] (0,-6) -- (0,-13);
+  \draw[skyrenNeutral600, line width=0.6pt] (40,-6) -- (40,-13);
+
+  \node[anchor=south] at (-40,-5) {do 30\,m};
+  \node[anchor=south] at (0,-5) {30--100\,m};
+  \node[anchor=south] at (40,-5) {nad 100\,m};
+
+  \draw[skyrenInk] (-56,-25) rectangle (-24,-13);
+  \node at (-40,-17) {\textbf{A} --- NRA24};
+  \node at (-40,-22) {hotové, týden};
+
+  \draw[skyrenInk] (-16,-25) rectangle (16,-13);
+  \node at (0,-17) {\textbf{C} --- vlastní};
+  \node at (0,-22) {front-end + anténa};
+
+  \draw[skyrenRed] (24,-25) rectangle (56,-13);
+  \node at (40,-17) {\textbf{B} --- automotive};
+  \node at (40,-22) {pozor na filtry};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Strom na obr.~\ref{fig:strom} je záměrně hrubý: dělicí čáry mezi variantami
+závisí na odrazivosti cíle a~zisku antény, které zatím neznáme. Slouží
+k~rozhodnutí, co objednat jako první, ne k~výběru finálního dílu.
+
+\begin{skyrentakeaway}
+Pro rychlé ověření zadání je nejlevnější varianta \textbf{A}: hotový 24GHz
+modul s~veřejným protokolem, data do týdne, bez RF návrhu. Plnou kontrolu
+nad měřením dá až varianta \textbf{C} --- a~na radaru je dosažitelná mnohem
+snáz než na uzavřeném optickém ASICu, kterým studie začala.
+\end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenchapter[\skyrenmodehowto]{Postup}{Jak zadání ověřit na stole}
+% ===========================================================================
+
+\begin{skyrenglance}
+Pět kroků od objednávky modulu k~rozhodnutí o~finální variantě. Cílem
+prvního kola není hotový produkt, ale změřená čísla, která nahradí katalogové
+údaje v~díle~III.
+\end{skyrenglance}
+
+\section{Kroky}
+\skyrenlead{Pořadí je závazné --- každý krok odstraňuje nejistotu, na které
+stojí ten další.}
+
+\begin{enumerate}
+\item \textbf{Určete požadovaný dosah.} Bez něj nelze vybrat variantu.
+      Převeďte ho na čas: při 240\,m/s dá 30\,m jen 125\,ms, 100\,m dá 417\,ms,
+      200\,m dá 833\,ms. Rozhodněte, kolik času potřebujete, ne kolik metrů.
+\item \textbf{Objednejte modul varianty A} a~zprovozněte čtení protokolu.
+      Cílem je mít proud dat, ne finální řešení.
+\item \textbf{Změřte statickou charakteristiku} na známých vzdálenostech
+      proti cíli, jehož odrazivost odpovídá reálné aplikaci. Porovnejte
+      s~katalogovým údajem --- rozdíl bude, jde o~to znát jeho velikost.
+\item \textbf{Ověřte chování při výpadku odrazu.} Nasměrujte radar mimo cíl
+      a~zaznamenejte, co modul hlásí a~jak dlouho trvá, než se zotaví.
+      Při 240\,m/s je 100\,ms bez dat 24\,metrů.
+\item \textbf{Změřte skutečnou latenci} od události k~dostupné hodnotě,
+      včetně přenosu a~filtru. Tohle číslo v~žádném datovém listu není
+      a~přitom rozhoduje o~použitelnosti víc než přesnost.
+\end{enumerate}
+
+\section{Co si zapsat}
+\skyrenlead{Minimální sada čísel, bez které se nedá rozhodnout mezi
+variantami.}
+
+Z~prvního kola potřebujeme čtyři hodnoty: skutečný dosah na reálném cíli,
+skutečnou obnovovací frekvenci, celkovou latenci a~četnost výpadků. Teprve
+s~nimi má smysl rozhodovat mezi hotovým modulem a~vlastním front-endem ---
+a~teprve pak dává smysl řešit anténu.
+
+\begin{skyrentryit}
+Modul hlásí 100 měření za sekundu a~latenci 3\,ms. Jaká je celková nejistota
+polohy cíle při 240\,m/s?
+\skyrenreveal{Latence dá 240 $\cdot$ 0,003 = 0,72\,m systematického zpoždění,
+perioda vzorkování dalších 2,4\,m nejistoty mezi vzorky. Dohromady přes tři
+metry --- zadání „desítky centimetrů“ takový modul nesplní, i~kdyby měl
+přesnost měření 1\,cm.}
+\end{skyrentryit}
+
+\begin{skyrentakeaway}
+První kolo neřeší výběr dílu, ale nahrazení katalogových čísel měřenými.
+Čtyři hodnoty --- dosah, frekvence, latence, výpadky --- rozhodnou o~variantě
+samy.
+\end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenappendix{Zdroje a vstupní data}
+% ===========================================================================
+
+\subsection{Vstupní data}
+Fotografická dokumentace teardownu dálkoměru Parkside PLEM 20 A4 je
+v~repozitáři ve~složce \skyrencmd{img/} (5 snímků, září 2026): typový štítek,
+obě strany měřicího modulu a~detaily osazení. Identifikace součástek
+vychází z~potisků na snímcích, nikoli z~měření.
+
+\subsection{Co nebylo ověřeno}
+Dokument stojí na katalogových údajích výrobců a~veřejně dostupné
+dokumentaci. \textbf{Nic z~uvedených dosahů, frekvencí ani cen nebylo
+ověřeno vlastním měřením ani poptávkou.} Vzorce v~díle~II jsou standardní
+radarové vztahy; dosazená čísla jsou přepočty, ne měření. Rozhodnutí
+o~variantě proto nelze udělat dřív než po prvním kole podle dílu~IV.
+
+\subsection{Zdroje}
+\begin{skyrendeflist}{Zdroj}{Co z~něj pochází}
+Broadcom, AFBR-S50MV85G & parametry optického dToF: 10\,m, až 3000 snímků/s,
+  otevřené API \\
+LightWare, SF30/D & parametry jediného vyhovujícího optického dálkoměru:
+  200\,m, až 20\,000 měření/s \\
+ams-OSRAM, TMF8820/21/28 & vícezónový dToF s~histogramem, důvod vyřazení
+  (integrační čas) \\
+RFbeam, K-LD2 & 24GHz modul postavený na Infineon BGT24LTR11 \\
+InnoSenT, IPM-165 & doložení, že levné 24GHz moduly bývají CW, nikoli FMCW \\
+nanoradar-protocols (GitHub) & zdokumentovaný protokol modulů NRA24 / MR72,
+  poznámky k~ArduPilot a~PX4 \\
+tier4/ars408\_driver (GitHub) & otevřený ovladač pro Continental ARS408 \\
+Continental / AUMOVIO, ARS 408 & parametry dálkového automobilového radaru:
+  250\,m, $\pm$4$^\circ$ \\
+\end{skyrendeflist}
+
+% ===========================================================================
+\skyrenappendix{Slovníček pojmů}
+% ===========================================================================
+
+\begin{skyrendeflist}{Pojem}{Význam jednou větou}
+FMCW & radar se spojitou vlnou, jejíž kmitočet lineárně přelaďujeme;
+  vzdálenost vypadne z~rozdílu kmitočtů \\
+chirp & jedna kmitočtová rampa vysílaného signálu \\
+rozdílová frekvence & rozdíl mezi vyslaným a~přijatým kmitočtem, přímo úměrný
+  vzdálenosti cíle \\
+rozlišovací buňka & nejmenší vzdálenost, na které radar rozliší dva cíle;
+  rovna $c/2B$ \\
+šířka přeladění $B$ & kmitočtový rozsah jedné rampy; jediná veličina, která
+  určuje rozlišení \\
+dToF & přímé měření doby letu pulzu; princip většiny laserových dálkoměrů \\
+iToF / fázový měřák & měření vzdálenosti z~fázového posuvu spojitě modulovaného
+  svazku; princip rozebraného Parkside \\
+maximální jednoznačná rychlost & nejvyšší rychlost, kterou radar změří bez
+  přetočení fáze mezi chirpy \\
+range-Doppler coupling & systematický posuv naměřené vzdálenosti způsobený
+  pohybem cíle během rampy \\
+integrační čas & doba, po kterou senzor akumuluje signál do jednoho měření;
+  u~rychlých cílů zdroj rozmazání \\
+latence & doba od fyzikální události k~okamžiku, kdy je hodnota dostupná
+  v~řídicím systému \\
+pásmo ISM 24\,GHz & volně použitelné pásmo 24,00--24,25\,GHz, šířka 250\,MHz \\
+\end{skyrendeflist}
+
+\end{document}
