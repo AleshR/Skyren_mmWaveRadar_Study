@@ -3,21 +3,24 @@
 % Build:  lualatex mmwave_radar_study.tex   (dvakrát)
 % ---------------------------------------------------------------------------
 \documentclass[czech]{skyren}
+\usepackage{amsmath}
+\usepackage{amssymb}   % \varnothing pro průměr
 
 \skyrendoctitle{mmWave Radar Study}
 \skyrenstudytype{TECHNICKÁ STUDIE}
-\skyrentitle{Radar v pásmu mm vln jako dálkoměr pro rychlé cíle}
-\skyrensubtitle{Proč optické měření na zadání 240\,m/s nestačí a co z levného
-24GHz FMCW front-endu jde dostat}
+\skyrentitle{Levný radarový dálkoměr pro rychlé cíle}
+\skyrensubtitle{Od rozebraného laserového dálkoměru k~24GHz FMCW senzoru
+o~průměru 35\,mm za jednotky eur}
 
-\skyrenaudience{Vývojář elektroniky nebo konstruktér, který radar dosud
-nedělal. Předpokládá se znalost embedded návrhu a základů zpracování signálu;
-radarové principy, pojmy i vzorce jsou vysvětlené od začátku. Expert najde
-konkrétní čísla, díly a důvody volby v~dílech II a~III.}
+\skyrenaudience{Vývojář elektroniky nebo konstruktér se základy
+vysokofrekvenční techniky (návrh patch antén, vedení, polarizace), který
+radar dosud nenavrhoval. Tři teoretické díly (signál, odraz, anténa)
+vysvětlují látku od základů i~s~odvozením; kdo ji zná, může číst jen souhrny
+na začátku a~na konci dílů a~pokračovat dílem Návrh.}
 
 \skyrenmeta{%
   \metaitem{Projekt}{mmWave Radar}\hfill
-  \metaitem{Revize}{R1}\hfill
+  \metaitem{Revize}{R2}\hfill
   \metaitem{Datum}{Září 2026}\hfill
   \metaitem[0.2]{Klasifikace}{Interní}%
 }
@@ -27,192 +30,181 @@ konkrétní čísla, díly a důvody volby v~dílech II a~III.}
 \skyrenmaketitle
 
 \begin{skyrensummary}
-Pro měření vzdálenosti při vzájemné rychlosti 240\,m/s s~přesností na desítky
-centimetrů vychází jako nejlevnější schůdná cesta \textbf{single-chirp FMCW
-radar v~pásmu 24\,GHz} --- ne optika a ne 77\,GHz. Rozhodujícím parametrem
-není přesnost jednoho měření, ale vzorkovací frekvence a integrační čas;
-na tom padá drtivá většina dostupných senzorů. Závěr má jednu otevřenou
-podmínku: \textbf{není určený požadovaný dosah}, a právě ten rozhoduje mezi
-hotovým modulem za jednotky tisíc korun a vlastním front-endem.
+Vzdálenost k~plošnému cíli do 5\,m při vzájemné rychlosti až 240\,m/s
+změří \textbf{24GHz FMCW radar s~trojúhelníkovou rampou}, jednou anténou
+o~průměru 35\,mm a~tištěnou čočkou; materiál vychází na \textbf{zhruba
+4--7\,€}. Na hladkých površích (plech, hladký beton, hoblované dřevo) je
+chyba pod 1\,cm a~radar měří kolmou vzdálenost k~rovině. Na drsných površích
+(hrubý beton, cihla) rozhoduje \textbf{speckle}: po průměrování přes 1,2\,m
+přiblížení vychází chyba kolem 3\,cm u~kolmé zdi, ale 5--6\,cm při náklonu
+15$^\circ$. Tam zadání 5\,cm splní až užší svazek. Otevřená je dokumentace
+a~cena čipu; chceme je získat rozebráním modulu HLK-LD2450.
 \end{skyrensummary}
 
 \begin{skyrennote}[Jak číst tento dokument]
 \textbf{Boxy se štítkem} označují typ sdělení: \textsc{poznámka} kontext
-navíc, \textsc{úskalí} častou chybu, \textsc{příklad} konkrétní vstup
-a~výstup, \textsc{zkus si} otázku k~zamyšlení. \textsc{Na jeden pohled}
-otevírá díl, \textsc{co z~toho plyne} ho uzavírá. \skyrencmd{Mono písmo}
-značí hodnotu nebo označení dílu.
+navíc, \textsc{úskalí} častou chybu, \textsc{příklad} konkrétní výpočet.
+\textsc{Na jeden pohled} otevírá díl, \textsc{co z~toho plyne} ho uzavírá.
+\skyrencmd{Mono písmo} značí hodnotu nebo označení dílu. Revize R2 nahrazuje
+R1: zadání se mezitím zpřesnilo a~většina závěrů R1 už neplatí. Čísla v~R2
+pocházejí z~výpočtů a~simulací, ne z~měření.
 \end{skyrennote}
 
 \tableofcontents
 \vspace{10mm}
 
 % ===========================================================================
-\skyrenchapter[\skyrenmodeexplanation]{Východiska}{Proč jsme opustili optiku}
+\skyrenchapter[\skyrenmodeexplanation]{Východiska}{Zadání a proč ne optika}
 % ===========================================================================
 
 \begin{skyrenglance}
 Rozebraný Parkside PLEM 20 A4 je fázový měřák s~uzavřeným ASICem --- slepá
-ulička. Ale skutečný důvod, proč optika odpadla, přišel až se zadáním
-240\,m/s: na té rychlosti přestává být limitem přesnost a stává se jím
-vzorkovací frekvence.
+ulička. Zadání 240\,m/s pak vyřadilo optiku jako princip: limitem přestává
+být přesnost jednoho měření a~stává se jím vzorkovací frekvence. Rozhodující
+pro návrh jsou ale až další dvě podmínky --- cena a~velikost.
 \end{skyrenglance}
 
 \section{Co jsme rozebrali}
-\skyrenlead{Teardown laserového dálkoměru Parkside a důvod, proč se v~něm
+\skyrenlead{Teardown laserového dálkoměru Parkside a~důvod, proč se v~něm
 nedá pokračovat.}
 
-Výchozím bodem studie byl rozebraný dálkoměr \skyrencmd{Parkside PLEM 20 A4}
+Výchozím bodem byl rozebraný dálkoměr \skyrencmd{Parkside PLEM 20 A4}
 (model \skyrencmd{HG06724}, výroba 2020/06). Měřicí modul je samostatná deska
-zhruba 13\,$\times$\,25\,mm s~označením \skyrencmd{V02}: laserová dioda
-v~pouzdře TO, přijímací lavinová fotodioda ve~stíněné komoře, krystal
-a~jeden ASIC v~pouzdře QFN s~potiskem \skyrencmd{LGSM4 / N1PA45.00-24}.
-K~hlavní desce vede osmipinový plochý spoj.
+zhruba 13\,$\times$\,25\,mm: laserová dioda v~pouzdře TO, přijímací lavinová
+fotodioda ve~stíněné komoře, krystal a~jeden ASIC v~pouzdře QFN s~potiskem
+\skyrencmd{LGSM4 / N1PA45.00-24}. K~hlavní desce vede osmipinový plochý spoj.
 
-Přístroj \skyrenterm{není} dToF. Neměří dobu letu pulzu, ale
-\skyrenterm{fázový posuv} spojitě modulovaného svazku --- proto ten krystal
-a~směšovač. Celý měřicí řetězec je uvnitř ASICu, který nese zákaznické
-označení bez veřejného datového listu.
+Přístroj neměří dobu letu pulzu, ale \skyrenterm{fázový posuv} spojitě
+modulovaného svazku. Celý měřicí řetězec je uvnitř ASICu se zákaznickým
+označením bez veřejného datového listu. Odposlech plochého spoje by dal
+kontrolu nad rozhraním, ne nad měřením: frekvence i~integrační čas zůstávají
+zadrátované v~čipu.
 
-\begin{skyrennote}[Proč je uzavřený ASIC konec cesty]
-Zbývaly tři možnosti: odposlechnout plochý spoj a~mluvit na modul vlastním
-mikrokontrolérem, vyčíst kalibrační paměť, nebo se napíchnout na analogový
-řetězec za fotodiodou a~počítat fázi sám. První dvě dají kontrolu nad
-\emph{rozhraním}, ne nad \emph{měřením} --- rate i integrační čas zůstávají
-zadrátované v~ASICu. Třetí je reálná, ale znamená zrekonstruovat modulační
-frekvence, které si čip generuje interně. Ani jedna z~cest nevede k~zadání
-níže.
-\end{skyrennote}
+\section{Zadání}
+\skyrenlead{Pět požadavků. Poslední dva, cena a~velikost, rozhodly o~návrhu
+nejvíc.}
 
-\section{Zadání: 240\,m/s a desítky centimetrů}
-\skyrenlead{Jak se z~rychlosti stane požadavek na vzorkovací frekvenci.}
+Zadání se během studie zpřesňovalo. Tabulka uvádí jeho konečný stav:
 
-Zadání zní: měřit vzdálenost při vzájemné rychlosti 240\,m/s s~přesností
-řádu desítek centimetrů. Klíčový převod je triviální --- dráha uražená mezi
-dvěma vzorky:
+\begin{skyrentable}{3}{Konečné zadání. Cena a~velikost jsou priority, které
+určil zadavatel.}
+\skyrenth{Parametr} & \skyrenth{Hodnota} & \skyrenth{Poznámka} \\
+\midrule
+Cíl & jeden, plošný & kov, plech, beton, zeď, dřevo \\
+Přesnost & $\approx$\,5\,cm na 5\,m & rozšíření: $<$\,3\,cm do 30\,m \\
+Rychlost & až 240\,m/s & vzájemná, cíl se přibližuje \\
+Cena & ideálně 25\,€, max. 50\,€ & materiál na kus; \textbf{priorita č.~1} \\
+Velikost & kruh $\varnothing$\,35\,mm, co nejmenší & \textbf{priorita č.~2} \\
+\end{skyrentable}
 
-\begin{skyrentable}{3}{Dráha mezi dvěma vzorky při rychlosti 240\,m/s.
-Poslední sloupec je nejistota polohy, kterou nelze odstranit přesnějším
-měřením, jen vyšší frekvencí.}
+Důležité je, že jde o~\emph{jeden} cíl. Nepotřebujeme oddělit dva odrazy
+blízko sebe (\skyrenterm{rozlišení}), stačí přesně určit polohu jednoho
+(\skyrenterm{přesnost}). Teoretické díly ukazují, že přesnost může být
+o~řád lepší než rozlišení.
+
+\section{Co udělá rychlost 240\,m/s}
+\skyrenlead{Převod rychlosti na požadavek na vzorkovací frekvenci.}
+
+Mezi dvěma vzorky urazí cíl dráhu, kterou žádné přesnější měření
+neodstraní --- jen vyšší frekvence:
+
+\begin{skyrentable}{3}{Dráha mezi dvěma vzorky při 240\,m/s.}
 \skyrenth{Vzorkovací frekvence} & \skyrenth{Perioda} & \skyrenth{Dráha mezi vzorky} \\
 \midrule
 100\,Hz & 10\,ms & 2,40\,m \\
-500\,Hz & 2\,ms & 48\,cm \\
 1\,kHz & 1\,ms & 24\,cm \\
-3\,kHz & 333\,\textmu s & 8\,cm \\
-20\,kHz & 50\,\textmu s & 1,2\,cm \\
+4\,kHz & 250\,\textmu s & 6\,cm \\
+10\,kHz & 100\,\textmu s & 2,4\,cm \\
 \end{skyrentable}
 
-Ze zadání „desítky centimetrů“ tedy plyne dolní mez \textbf{zhruba 1\,kHz}.
-Se senzorem na 100\,Hz máte mezi vzorky 2,4\,m nejistoty bez ohledu na to,
-že jednotlivé měření je přesné na tři centimetry.
+Z~toho plynou tři požadavky: vzorkovací frekvence aspoň 1\,kHz,
+integrační čas jednoho měření pod 1\,ms a~latence celé cesty v~jednotkách
+milisekund. Měření staré 5\,ms je 1,2\,m mimo.
 
-Z~toho vyplývají tři odvozené požadavky, které většina katalogových senzorů
-nesplní:
-
-\begin{enumerate}
-\item \textbf{Vzorkovací frekvence nejméně 1\,kHz}, s~rezervou na průměrování
-      raději víc.
-\item \textbf{Integrační čas do 1\,ms.} Senzory, které akumulují histogram
-      přes desítky milisekund, za tu dobu ujedou několik metrů a~histogram se
-      rozmaže. Tím vypadávají všechny vícezónové dToF čipy.
-\item \textbf{Latence celé cesty do 2--3\,ms.} Měření staré 5\,ms je
-      1,2\,m mimo. Do rozpočtu latence patří i~sériová linka a~filtr, ne jen
-      senzor.
-\end{enumerate}
-
-\begin{skyrengotcha}[Přesnost není to, co vás zastaví]
-Nejčastější chyba při výběru je porovnávat senzory podle údaje
-„$\pm$\,3\,cm“. Ten popisuje rozptyl jednoho měření za ideálních podmínek.
-Při 240\,m/s je ale dominantní chybou stáří vzorku, ne jeho rozptyl.
-Datové listy tenhle údaj neuvádějí, protože závisí na vaší rychlosti ---
-musíte si ho spočítat sami z~vzorkovací frekvence a~latence.
+\begin{skyrengotcha}[Přesnost z~datového listu nestačí]
+Údaj „$\pm$\,3\,cm“ v~datovém listu popisuje rozptyl jednoho měření za
+ideálních podmínek. Při 240\,m/s bývá větší chybou stáří vzorku. Tu datový
+list neuvede, protože závisí na vaší rychlosti --- spočítejte ji z~frekvence
+a~latence.
 \end{skyrengotcha}
 
-\section{Proč ani dToF nevyhrál}
-\skyrenlead{Jediný optický senzor, který zadání splní, a~proč to nakonec
-nestačí.}
+\section{Proč ne optika}
+\skyrenlead{Jediný vyhovující optický dálkoměr je o~řád dražší, než
+dovoluje rozpočet.}
 
-Přímé měření doby letu (dToF) bylo přirozeným dalším krokem. Průmyslová
-nabídka se ale na požadavku 1\,kHz smrskne prakticky na jediný díl:
-\skyrencmd{LightWare SF30/D} --- katalogově 0,2 až 200\,m s~konfigurovatelnou
-frekvencí až 20\,000 měření za sekundu. Technicky zadání splní s~rezervou.
-
-Všechno ostatní padá na frekvenci: vícezónové čipy ST \skyrencmd{VL53Lxx}
-běží na 50--60\,Hz, \skyrencmd{ams TMF8828} na jednotkách až desítkách Hz,
-moduly \skyrencmd{Benewake TF-Luna} a~\skyrencmd{TFmini-S} na 100\,Hz.
-\skyrencmd{Broadcom AFBR-S50MV85G} sice zvládne až 3000 snímků za sekundu
-a~má otevřené API, ale dosah kolem 10\,metrů dá při 240\,m/s jen zhruba
-42\,ms času --- použitelné pro měření k~zemi, ne dopředu.
-
-Zůstane tedy jeden díl, v~ceně, která u~SF30/D odpovídá spíš měřicí technice
-než součástce. To je moment, kdy se vyplatí změnit princip, ne dodavatele.
+Přímé měření doby letu (dToF) splní požadavek na frekvenci jen u~výjimek.
+\skyrencmd{LightWare SF30/D} měří katalogově 0,2 až 200\,m s~frekvencí až
+20\,000 měření za sekundu. Rychlostí by zadání splnil, cenou ale patří mezi
+měřicí techniku, ne mezi součástky. Levné senzory (\skyrencmd{VL53Lxx},
+\skyrencmd{TMF8828}, \skyrencmd{TF-Luna}) běží na desítkách až stovkách Hz.
+\skyrencmd{Broadcom AFBR-S50MV85G} zvládne až 3000 snímků za sekundu, ale
+dosah má kolem 10\,m. S~rozpočtem 25\,€ proto zbývá radar.
 
 \begin{skyrentakeaway}
-Optika na tomhle zadání neselhala na přesnosti ani na dosahu, ale na
-kombinaci frekvence a~ceny. Jediný vyhovující optický díl stojí řádově víc
-než celý radarový front-end, který totéž zvládne --- a~navíc nevidí do
-prachu a~protisvětla.
+Optika na tomhle zadání neselhala na přesnosti, ale na kombinaci frekvence
+a~ceny. O~dalším návrhu rozhodly cena a~velikost, ne fyzikální meze měření.
 \end{skyrentakeaway}
 
 % ===========================================================================
-\skyrenchapter[\skyrenmodeexplanation]{Princip}{Jak FMCW měří vzdálenost}
+\skyrenchapter[\skyrenmodeexplanation]{Teorie: signál}{Signál FMCW}
 % ===========================================================================
 
 \begin{skyrenglance}
-FMCW převádí vzdálenost na frekvenci: vyšle se kmitočtová rampa, přijatý
-odraz je zpožděná kopie, a~jejich rozdíl je přímo úměrný vzdálenosti.
-Jedna rampa plus jedna FFT stačí --- a~tím se z~radaru stane levná úloha.
+FMCW převádí vzdálenost na kmitočet. Vzdálenost vypadne z~polohy vrcholu
+ve spektru jedné rampy; rozlišení určuje šířka pásma, přesnost odstup
+signálu od šumu. Pohyb cíle posune odhad o~desítky centimetrů, trojúhelníková
+rampa ten posuv vyruší. U~blízkých cílů rozhoduje vazba vysílače do
+přijímače a~blikavý šum.
 \end{skyrenglance}
 
-\section{Chirp a rozdílová frekvence}
-\skyrenlead{Základní mechanismus, ze kterého plyne všechno ostatní.}
+\section{Chirp a~rozdílová frekvence}
+\skyrenlead{Model signálu, ze kterého plyne všechno ostatní.}
 
 \skyrenterm{FMCW} (frequency-modulated continuous wave) vysílá spojitý signál,
-jehož kmitočet lineárně roste --- takové rampě se říká \skyrenterm{chirp}.
-Odraz od cíle dorazí zpožděný o~dobu letu $\tau = 2R/c$. Protože vysílač mezitím
-stoupl v~kmitočtu dál, je mezi vyslaným a~přijatým signálem rozdíl. Směšovač
-z~nich udělá \skyrenterm{rozdílovou frekvenci} $f_\mathrm{b}$ (angl. \emph{beat
-frequency}), a~ta je vzdálenosti přímo úměrná.
+jehož kmitočet lineárně roste; jedné takové rampě se říká \skyrenterm{chirp}.
+Se sklonem $S = B/T$, kde $B$ je šířka přeladění a~$T$ délka chirpu, má
+vysílaný signál fázi
+\[
+\varphi_\mathrm{t}(t) = 2\pi\left(f_0 t + \tfrac{1}{2} S t^2\right)
+\]
+Odraz od cíle ve vzdálenosti $R$ přijde zpožděný o~dobu letu $\tau = 2R/c$.
+Směšovač vynásobí vyslaný a~přijatý signál a~dolní propust nechá jen
+rozdílovou složku:
+\[
+s_\mathrm{b}(t) = A\cos\!\left(2\pi S\tau\,t + 2\pi f_0\tau - \pi S\tau^2\right)
+\]
+Je to harmonický signál s~\skyrenterm{rozdílovou frekvencí}
+\[
+f_\mathrm{b} = S\tau = \frac{2RB}{cT}
+\]
+a~s~fází $4\pi R/\lambda$, která se mění už při posunu cíle o~zlomek vlnové
+délky. Člen $\pi S\tau^2$ je na 5\,m pod 0,1\,rad a~konstantní, takže ho lze
+zanedbat.
 
 \begin{skyrenfigure}{Princip FMCW. Vyslaný chirp (plná čára) stoupá lineárně;
 odraz (čárkovaně) je jeho kopie posunutá o~dobu letu $\tau$. Svislá vzdálenost
-mezi čarami je rozdílová frekvence $f_\mathrm{b}$ --- konstantní po celou dobu
-rampy, a~přímo úměrná vzdálenosti cíle.}{fig:fmcw}
+mezi čarami je rozdílová frekvence $f_\mathrm{b}$ --- po celou rampu konstantní
+a~přímo úměrná vzdálenosti cíle.}{fig:fmcw}
 \begin{tikzpicture}[x=1.2mm, y=1.2mm, line width=1pt,
   every node/.style={font=\fontsize{8}{10}\selectfont}]
-
-  % osy
   \draw[skyrenNeutral600, line width=0.6pt, ->] (0,0) -- (78,0)
     node[anchor=north east] {čas};
   \draw[skyrenNeutral600, line width=0.6pt, ->] (0,0) -- (0,32)
     node[anchor=south west] {kmitočet};
-
-  % vyslany chirp
   \draw[skyrenInk] (0,2) -- (30,26);
   \draw[skyrenInk] (30,2) -- (60,26);
-
-  % prijaty odraz, zpozdeny o tau = 7
   \draw[skyrenNeutral600, dashed, line width=0.9pt] (7,2) -- (37,26);
   \draw[skyrenNeutral600, dashed, line width=0.9pt] (37,2) -- (60,20.4);
-
-  % beat marker
   \draw[skyrenRed, line width=1pt] (22,13.6) -- (22,19.6);
   \node[anchor=west, skyrenRed] at (23.5,16.6) {$f_\mathrm{b}$};
-
-  % tau marker
   \draw[skyrenNeutral600, line width=0.6pt] (0,-4) -- (7,-4);
   \draw[skyrenNeutral600, line width=0.6pt] (0,-2.5) -- (0,-5.5);
   \draw[skyrenNeutral600, line width=0.6pt] (7,-2.5) -- (7,-5.5);
   \node[anchor=north] at (3.5,-5) {$\tau$};
-
-  % sirka pasma
   \draw[skyrenNeutral600, line width=0.6pt] (66,2) -- (66,26);
   \draw[skyrenNeutral600, line width=0.6pt] (64.5,2) -- (67.5,2);
   \draw[skyrenNeutral600, line width=0.6pt] (64.5,26) -- (67.5,26);
   \node[anchor=west] at (68,14) {$B$};
-
-  % legenda
   \draw[skyrenInk] (0,-13) -- (7,-13);
   \node[anchor=west] at (8.5,-13) {vyslaný chirp};
   \draw[skyrenNeutral600, dashed, line width=0.9pt] (34,-13) -- (41,-13);
@@ -220,294 +212,949 @@ rampy, a~přímo úměrná vzdálenosti cíle.}{fig:fmcw}
 \end{tikzpicture}
 \end{skyrenfigure}
 
-Na obr.~\ref{fig:fmcw} si všimněte dvou věcí. Za prvé, rozdíl mezi čarami je
-po celou rampu konstantní --- proto stačí jednu rampu naFFTovat a~odečíst
-polohu vrcholu. Za druhé, jediné, co určuje rozlišení, je celková výška rampy,
-tedy šířka přeladění $B$.
+Na obr.~\ref{fig:fmcw} je vidět, že rozdíl mezi čarami je po celou rampu
+konstantní. Pro návrhový profil ($B = 250$\,MHz, $T = 10$\,\textmu s) vychází
+$f_\mathrm{b}$ na 1\,m 167\,kHz, na 5\,m 833\,kHz a~na 8\,m 1,33\,MHz.
 
-\section{Kolik centimetrů z~toho vypadne}
-\skyrenlead{Převod šířky pásma na rozlišení a~přesnost, s~čísly pro pásmo ISM.}
+\section{Od vzorků ke vzdálenosti}
+\skyrenlead{Okno, FFT, doplnění nulami a~interpolace vrcholu --- a~kolik
+která část přispívá k~chybě.}
 
-Rozlišovací schopnost FMCW radaru závisí jen na šířce přeladění:
+Mezifrekvenční signál se během chirpu navzorkuje; při 4\,MSPS a~10\,\textmu s
+to je $N = 40$ vzorků. Vzorkování \skyrenterm{I/Q} (dva kanály posunuté
+o~90$^\circ$) dává komplexní signál, který rozliší znaménko kmitočtu. To je
+potřeba pod 0,23\,m, kde dopplerovský posuv převýší rozdílovou frekvenci
+(viz dále).
+
+Vzorky se vynásobí \skyrenterm{oknem}. Hannovo okno potlačí postranní laloky
+spektra na $-31$\,dB, takže silná vazba vysílače do přijímače nebo druhý
+odraz neprosáknou do buňky cíle. Cenou je dvakrát širší hlavní lalok
+a~šumová šířka 1,5 buňky místo jedné.
+
+Pak následuje rychlá Fourierova transformace (FFT). Doplnění nulami ze 40 na
+64 nebo 128 bodů zhustí vzorkování spektra, rozlišení ale nezlepší.
+Vrchol leží mezi body FFT; jeho polohu dopočítá
+\skyrenterm{parabolická interpolace} logaritmu amplitudy ve třech bodech
+$k-1, k, k+1$ s~hodnotami $\alpha, \beta, \gamma$ v~dB:
+\[
+\delta = \frac{1}{2}\cdot\frac{\alpha-\gamma}{\alpha-2\beta+\gamma}, \qquad
+\hat R = (k+\delta)\cdot\frac{c\,f_\mathrm{s}}{2\,S\,M}
+\]
+kde $f_\mathrm{s}$ je vzorkovací frekvence a~$M$ délka FFT. Simulace
+s~Hannovým oknem dala systematickou chybu interpolace nejvýš 2\,mm pro
+$M = 64$ a~0,2\,mm pro $M = 128$. Interpolace tedy do rozpočtu chyby
+nepřispívá.
+
+\section{Rozlišení a~přesnost}
+\skyrenlead{Rozlišení určuje šířka pásma, přesnost na jeden cíl určuje odstup
+signálu od šumu.}
+
+\skyrenterm{Rozlišení} je nejmenší vzdálenost, na které radar oddělí dva
+cíle. Závisí jen na šířce přeladění:
 \[
 \Delta R = \frac{c}{2B}
 \]
-V~pásmu ISM \skyrencmd{24,00--24,25\,GHz} je k~dispozici $B = 250$\,MHz, což dává
+Ve volném pásmu \skyrencmd{24,00--24,25\,GHz} je $B = 250$\,MHz, takže
+$\Delta R = 60$\,cm. Lepší rozlišení by vyžadovalo jiné pásmo: 4\,GHz
+v~pásmu 60\,GHz dává 3,75\,cm.
 
+Pro jeden cíl je podstatná \skyrenterm{přesnost}. Teoretickou nejmenší
+chybu udává \skyrenterm{Cramér--Raova mez} pro odhad kmitočtu harmonického
+signálu v~šumu:
 \[
-\Delta R = \frac{3\cdot10^{8}}{2 \cdot 250\cdot10^{6}} = 0{,}60\ \mathrm{m}
+\sigma_R \geq \frac{\sqrt{6}}{2\pi}\cdot\frac{\Delta R}{\sqrt{\mathrm{SNR}}}
+\approx 0{,}39\,\frac{\Delta R}{\sqrt{\mathrm{SNR}}}
 \]
-
-Šedesát centimetrů je velikost \skyrenterm{rozlišovací buňky} --- vzdálenost,
-na které radar rozliší dva samostatné cíle. \emph{Přesnost} určení polohy
-jednoho cíle je ale výrazně lepší: interpolací vrcholu FFT (parabolickou
-nebo těžištěm) se běžně dostanete na desetinu buňky, tedy zhruba
-\textbf{5 až 10\,cm}.
+kde SNR je odstup signálu od šumu po FFT (energie signálu za chirp
+k~spektrální hustotě šumu). Hannovo okno s~parabolickou interpolací dosahuje
+podle simulace $\sigma_R \approx 0{,}6\,\Delta R/\sqrt{\mathrm{SNR}}$.
 
 \begin{skyrenexample}
-Chirp dlouhý 100\,\textmu s, přeladění 250\,MHz, jeden cíl ve~vzdálenosti
-40\,m. Doba letu $\tau = 2\cdot40/3\cdot10^{8} = 267$\,ns. Sklon rampy
-$S = 250\,\mathrm{MHz}/100\,\mathrm{\mu s} = 2{,}5\cdot10^{12}$\,Hz/s,
-rozdílová frekvence $f_\mathrm{b} = S\tau = 667$\,kHz. Tu zpracuje běžný
-ADC v~mikrokontroléru. Při 100\,\textmu s na chirp vychází vzorkovací
-frekvence 10\,kHz --- řádově nad požadovanou 1\,kHz.
+Buňka 60\,cm, SNR 30\,dB (1000$\times$): mez dává 0,74\,cm, praktický
+odhad 1,1\,cm, simulace 1,2\,cm. Při 40\,dB vychází prakticky 0,35\,cm.
+Rozlišení 60\,cm tedy přesnosti na centimetry nebrání, pokud je signálu
+dost a~cíl je jeden.
 \end{skyrenexample}
 
-Zadání „desítky centimetrů“ je tedy splněné s~rezervou v~nejlevnějším
-dostupném pásmu. To je hlavní důvod, proč studie končí u~24\,GHz.
+Fáze vrcholu $4\pi R/\lambda$ nese ještě jemnější informaci, ale
+s~nejednoznačností $\lambda/2$, na 24\,GHz 6,2\,mm. Hrubý odhad z~FFT není
+dost přesný, aby ji rozbalil absolutně. Fáze proto dává jen
+\emph{relativní} změnu vzdálenosti při spojitém sledování cíle.
 
-\section{Proč 24\,GHz poráží 77\,GHz}
-\skyrenlead{Kontraintuitivní výsledek: levnější pásmo je pro rychlé cíle
-zároveň vhodnější.}
+\section{Dopplerův posuv a~trojúhelníková rampa}
+\skyrenlead{Při 240\,m/s posune pohyb cíle odhad o~23\,cm. Střídání rampy
+nahoru a~dolů ten posuv vyruší a~navíc změří rychlost.}
 
-U~automobilových radarů je standardem pásmo 76--81\,GHz, protože nabízí
-$B$ až 5\,GHz a~tím rozlišení kolem 3\,cm. Pro naše zadání ale rozhoduje jiný
-parametr --- \skyrenterm{maximální jednoznačná rychlost}, tedy nejvyšší
-rychlost, kterou radar změří bez toho, aby se mu fáze „přetočila“:
+Přibližující se cíl zvýší kmitočet odrazu o~\skyrenterm{dopplerovský posuv}
+$f_\mathrm{d} = 2v/\lambda$; při 240\,m/s a~$\lambda = 12{,}4$\,mm to je
+38,6\,kHz. U~stoupající rampy se tím rozdílová frekvence zmenší,
+u~klesající zvětší:
 \[
-v_\mathrm{max} = \frac{\lambda}{4 T_\mathrm{c}}
+f_{\mathrm{b}\uparrow} = S\tau - f_\mathrm{d}, \qquad
+f_{\mathrm{b}\downarrow} = S\tau + f_\mathrm{d}
 \]
-kde $\lambda$ je vlnová délka a~$T_\mathrm{c}$ perioda opakování chirpů.
-Pro požadovaných 240\,m/s z~toho plyne:
+Převedeno na vzdálenost je každý z~obou odhadů posunutý o
+\[
+\Delta R_\mathrm{D} = \frac{v\,c\,T}{\lambda\,B}
+\]
+což je při chirpu 10\,\textmu s \textbf{23\,cm}, při 25\,\textmu s už 58\,cm.
 
-\begin{skyrentable}{4}{Požadavek na periodu chirpů pro jednoznačné měření
-rychlosti 240\,m/s. Nižší pásmo požadavek výrazně uvolňuje.}
-\skyrenth{Pásmo} & \skyrenth{$\lambda$} & \skyrenth{Nutné $T_\mathrm{c}$} & \skyrenth{Náročnost} \\
-\midrule
-77\,GHz & 3,9\,mm & $\leq$ 4,1\,\textmu s & na hraně \\
-60\,GHz & 5,0\,mm & $\leq$ 5,2\,\textmu s & na hraně \\
-24\,GHz & 12,4\,mm & $\leq$ 12,9\,\textmu s & pohodlné \\
-\end{skyrentable}
-
-\begin{skyrennote}[Proč nižší pásmo pomáhá]
-Doppler měří radar z~fázového posuvu mezi po sobě jdoucími chirpy. Aby byl
-výsledek jednoznačný, nesmí se fáze mezi dvěma chirpy otočit o~víc než
-půl otáčky. Delší vlna znamená, že stejný posun cíle udělá menší část otáčky
---- a~tím se strop jednoznačné rychlosti zvedne. Levnější pásmo je tady
-zároveň to technicky vhodnější, což se v~elektronice nestává často.
-\end{skyrennote}
-
-\section{Doppler ale vůbec nepotřebujeme}
-\skyrenlead{Zjednodušení, které srazí výpočetní nároky o~řád.}
-
-Předchozí sekce řeší problém, který v~našem zadání nemusí vzniknout. Zadání
-zní \emph{měřit vzdálenost}, ne rychlost. A~vzdálenost vypadne z~jediné rampy:
-naFFTovat mezifrekvenci, najít vrchol, přepočítat na metry. Žádné koherentní
-sekvence chirpů, žádná dvourozměrná FFT, a~\textbf{problém nejednoznačné
-rychlosti se vůbec neobjeví}.
-
-Vysoká rychlost způsobí jen tzv. \skyrenterm{range-Doppler coupling} --- malý
-systematický posuv naměřené vzdálenosti úměrný rychlosti, který jde při
-známé rychlosti dopočítat, a~při strmé rampě je i~tak malý.
-
-Praktický dopad je zásadní: výpočetní nárok klesne z~„mmWave SDK a~signálový
-procesor“ na \textbf{256bodovou FFT na běžném mikrokontroléru}. Tím se otevírá
-varianta C ve~výčtu v~díle~III.
-
-\begin{skyrentakeaway}
-FMCW dává vzdálenost z~jedné rampy a~jedné FFT. V~pásmu 24\,GHz to znamená
-rozlišovací buňku 60\,cm, po interpolaci přesnost pod 10\,cm, a~vzorkovací
-frekvenci v~jednotkách až desítkách kHz --- tedy celé zadání, na hardwaru
-řádu stokorun až tisícikorun.
-\end{skyrentakeaway}
-
-% ===========================================================================
-\skyrenchapter[\skyrenmodereference]{Varianty}{Co se dá koupit}
-% ===========================================================================
-
-\begin{skyrenglance}
-Čtyři cenové hladiny od hotového modulu s~dokumentovaným protokolem po
-vlastní front-end. Zároveň seznam dílů, které vypadají levně, ale na tomhle
-zadání nefungují.
-\end{skyrenglance}
-
-\section{Čtyři hladiny}
-\skyrenlead{Přehled variant seřazený podle poměru cena / vlastní práce.}
-
-\begin{skyrentable}{4}{Varianty řešení. Ceny jsou orientační k~září 2026
-a~nebyly ověřeny poptávkou; dosahy jsou katalogové údaje výrobců, neměřené.}
-\skyrenth{Varianta} & \skyrenth{Cena} & \skyrenth{Vlastní práce} & \skyrenth{Poznámka} \\
-\midrule
-\textbf{A} --- NanoRadar NRA24 / MR72 &
-  1--3 tis.\,Kč & žádná RF práce & 24\,GHz, CAN + sériová, protokol veřejně
-  zdokumentovaný, podpora ArduPilot/PX4 \\
-\textbf{B} --- vyřazený automotive
-  (Continental ARS408, Delphi ESR) &
-  1--4 tis.\,Kč & integrace CAN & největší dosah za nejmíň peněz, existují
-  otevřené ovladače \\
-\textbf{C} --- vlastní front-end
-  (Infineon BGT24LTR11 / BGT24MTR11) &
-  0,5--1 tis.\,Kč BOM & RF deska + DSP & plná kontrola, žádný cizí firmware
-  mezi vámi a~daty \\
-\textbf{D} --- TI IWR6843AOP &
-  čip $\approx$\,0,6 tis.\,Kč, vývojový kit $\approx$\,7 tis.\,Kč &
-  konfigurace chirpů & anténa v~pouzdře, odpadá návrh anténního pole \\
-\end{skyrentable}
-
-Varianta \textbf{A} je nejrychlejší cesta k~datům: modul má hotový firmware
-a~zveřejněný protokol, takže se dá ověřit geometrie a~chování odrazů dřív,
-než padne rozhodnutí o~finálním řešení.
-
-Varianta \textbf{B} nabízí největší dosah, ale nese dvě rizika. Za prvé je
-to 77\,GHz, takže měření rychlosti se při 240\,m/s přetočí (vzdálenost
-zůstává správně). Za druhé má firmware zabudované automobilové filtry
-věrohodnosti, které cíl mimo očekávaný rozsah rychlostí mohou zahodit ---
-a~dozvíte se to až z~naměřených dat.
-
-\begin{skyrengotcha}[Levné moduly, které tohle zadání nezvládnou]
-Moduly pro detekci osob (\skyrencmd{HLK-LD2410}, \skyrencmd{HLK-LD2450},
-podobné 24GHz „presence“ čipy za pár set korun) mají firmware laděný na
-chodce: dopplerovské filtry odfiltrují všechno rychlejší, obnovovací
-frekvence je 10--20\,Hz a~dosah jednotky metrů. Dopplerovské moduly
-\skyrencmd{HB100} a~\skyrencmd{CDM324} za desetikoruny jsou CW --- dají
-\emph{rychlost}, nikoli vzdálenost. Absolutní vzdálenost z~nich nedostanete
-žádným zpracováním.
-\end{skyrengotcha}
-
-\section{O~dosahu rozhoduje anténa, ne modul}
-\skyrenlead{Kam investovat, když chcete dosah: zisk antény má čtvrtou
-mocninu na své straně.}
-
-V~radarové rovnici klesá přijatý výkon se čtvrtou mocninou vzdálenosti.
-Obráceně to znamená, že zisk antény se do dosahu promítá mnohem silněji než
-volba čipu: \textbf{každých 6\,dB zisku navíc znamená zhruba 1,4násobný
-dosah}, a~to na obou stranách, protože táž anténa vysílá i~přijímá.
-
-Tady hraje zadání pro nás. Měříme na jeden bod, nepotřebujeme široké zorné
-pole --- a~úzký svazek je přesně to, co dává vysoký zisk. Slušné anténní pole
-nebo malá čočka udělá pro dosah víc než přechod na modul o~třídu výš.
-
-\begin{skyrenfigure}{Rozhodovací strom pro volbu varianty. Vstupem je
-požadovaný dosah, který zatím není určený --- proto studie končí u~doporučení,
-ne u~objednávky.}{fig:strom}
-\begin{tikzpicture}[x=1mm, y=1mm, line width=1pt,
+\begin{skyrenfigure}{Trojúhelníková rampa a~přibližující se cíl. Odraz
+(čárkovaně) je zpožděný o~$\tau$ a~posunutý nahoru o~$f_\mathrm{d}$. Na
+stoupající rampě se rozdílová frekvence zmenší, na klesající zvětší; průměr
+obou je bez Dopplerova posuvu.}{fig:troj}
+\begin{tikzpicture}[x=1.2mm, y=1.2mm, line width=1pt,
   every node/.style={font=\fontsize{8}{10}\selectfont}]
-
-  \draw[skyrenInk] (-17,0) rectangle (17,10);
-  \node at (0,5) {Jaký dosah potřebuješ?};
-
-  \draw[skyrenNeutral600, line width=0.6pt] (0,0) -- (0,-6);
-  \draw[skyrenNeutral600, line width=0.6pt] (-40,-6) -- (40,-6);
-  \draw[skyrenNeutral600, line width=0.6pt] (-40,-6) -- (-40,-13);
-  \draw[skyrenNeutral600, line width=0.6pt] (0,-6) -- (0,-13);
-  \draw[skyrenNeutral600, line width=0.6pt] (40,-6) -- (40,-13);
-
-  \node[anchor=south] at (-40,-5) {do 30\,m};
-  \node[anchor=south] at (0,-5) {30--100\,m};
-  \node[anchor=south] at (40,-5) {nad 100\,m};
-
-  \draw[skyrenInk] (-56,-25) rectangle (-24,-13);
-  \node at (-40,-17) {\textbf{A} --- NRA24};
-  \node at (-40,-22) {hotové, týden};
-
-  \draw[skyrenInk] (-16,-25) rectangle (16,-13);
-  \node at (0,-17) {\textbf{C} --- vlastní};
-  \node at (0,-22) {front-end + anténa};
-
-  \draw[skyrenRed] (24,-25) rectangle (56,-13);
-  \node at (40,-17) {\textbf{B} --- automotive};
-  \node at (40,-22) {pozor na filtry};
+  \draw[skyrenNeutral600, line width=0.6pt, ->] (0,0) -- (70,0)
+    node[anchor=north east] {čas};
+  \draw[skyrenNeutral600, line width=0.6pt, ->] (0,0) -- (0,33)
+    node[anchor=south west] {kmitočet};
+  \draw[skyrenInk] (0,2) -- (30,26) -- (60,2);
+  \draw[skyrenNeutral600, dashed, line width=0.9pt] (6,4.5) -- (36,28.5) -- (60,9.3);
+  \draw[skyrenRed, line width=1pt] (20,15.7) -- (20,18);
+  \node[anchor=east, skyrenRed] at (19,16.9) {$f_{\mathrm{b}\uparrow}$};
+  \draw[skyrenRed, line width=1pt] (48,11.6) -- (48,18.9);
+  \node[anchor=west, skyrenRed] at (49,15.2) {$f_{\mathrm{b}\downarrow}$};
+  \draw[skyrenInk] (0,-6) -- (7,-6);
+  \node[anchor=west] at (8.5,-6) {vyslaná rampa};
+  \draw[skyrenNeutral600, dashed, line width=0.9pt] (34,-6) -- (41,-6);
+  \node[anchor=west] at (42.5,-6) {odraz od přibližujícího se cíle};
 \end{tikzpicture}
 \end{skyrenfigure}
 
-Strom na obr.~\ref{fig:strom} je záměrně hrubý: dělicí čáry mezi variantami
-závisí na odrazivosti cíle a~zisku antény, které zatím neznáme. Slouží
-k~rozhodnutí, co objednat jako první, ne k~výběru finálního dílu.
+Z~dvojice odhadů $R_\uparrow = R - \Delta R_\mathrm{D}$
+a~$R_\downarrow = R + \Delta R_\mathrm{D}$ (obr.~\ref{fig:troj}) plyne
+\[
+R = \frac{R_\uparrow + R_\downarrow}{2}, \qquad
+v = \frac{\lambda B}{2cT}\,\bigl(R_\downarrow - R_\uparrow\bigr)
+\]
+Vzdálenost platí pro střed dvojice chirpů, tam patří i~časová značka. Během
+jednoho chirpu se cíl posune o~$vT = 2{,}4$\,mm, což je zanedbatelné.
+Dopplerovská FFT přes více chirpů, obvyklá u~automobilových radarů, tu
+nefunguje: s~periodou chirpů kolem 25\,\textmu s je nejvyšší jednoznačná
+rychlost $\lambda/4T_\mathrm{c} \approx 124$\,m/s a~240\,m/s by se přetočila.
+
+\section{Šum a~odstup signálu od šumu}
+\skyrenlead{Tepelný šum v~šířce jedné buňky a~proč fázový šum oscilátoru na
+metrech skoro nevadí.}
+
+Šum připadající na jednu buňku spektra je tepelný šum v~šumové šířce okna,
+zvětšený o~šumové číslo přijímače $F$:
+\[
+N = kT_0 \cdot \frac{\mathrm{ENBW}}{T} \cdot F
+\quad\Rightarrow\quad
+N_\mathrm{dBm} = -174 + 10\log_{10}\frac{1{,}5}{T} + F_\mathrm{dB}
+\]
+Pro chirp 10\,\textmu s a~šumové číslo 15\,dB (odhad, datový list čipu
+nemáme) vychází \mbox{$N \approx -107$\,dBm}.
+
+Fázový šum oscilátoru se ve směšovači z~velké části odečte, protože vysílaný
+i~referenční signál pocházejí ze stejného oscilátoru. Zbytek je úměrný
+$2\sin(\pi f_\mathrm{m}\tau)$, kde $f_\mathrm{m}$ je odstup od nosné. Na
+5\,m je $\tau = 33$\,ns a~potlačení vychází $-14$\,dB při 1\,MHz a~$-34$\,dB
+při 100\,kHz. Na krátké vzdálenosti tedy kvalita oscilátoru rozhoduje málo.
+
+\section{Blízký dosah: vazba, blikavý šum a~horní propust}
+\skyrenlead{Silná vazba vysílače do přijímače, blikavý šum a~velká dynamika
+se řeší jedním filtrem --- a~ten má mít pro plošný cíl sklon 20\,dB na
+dekádu, ne 40.}
+
+S~jednou anténou pro vysílání i~příjem teče část vysílaného výkonu přímo do
+přijímače: přes konečnou izolaci vazebníku (typicky kolem 25\,dB), přes odraz
+na anténě a~přes odrazy na čočce. Tato vazba sedí u~nulové rozdílové
+frekvence a~může dosáhnout $-15$ až $-20$\,dBm na vstupu přijímače.
+Kompresní bod přijímače integrovaného čipu neznáme; pokud je kolem
+$-15$\,dBm, hrozí zahlcení. Proto je u~jedné antény klíčové dobré
+impedanční přizpůsobení ($S_{11} < -20$\,dB).
+
+Blikavý šum (1/$f$) směšovače roste pod zhruba 100\,kHz. Krátký chirp drží
+rozdílovou frekvenci i~na 1\,m (167\,kHz) nad touto oblastí.
+
+Výkon odrazu od plošného cíle klesá s~$R^2$ (díl Odraz od plošného cíle), amplituda tedy
+s~$1/R$, a~protože $f_\mathrm{b} \propto R$, klesá amplituda úměrně
+$1/f_\mathrm{b}$. Horní propust prvního řádu s~mezním kmitočtem nad pásmem
+měření má v~pásmu zisk úměrný $f$, tedy \textbf{+20\,dB na dekádu}: srovná
+úroveň signálu přes celý rozsah vzdáleností a~současně potlačí vazbu
+u~nulového kmitočtu. Pro bodový cíl ($R^{-4}$) by bylo potřeba +40\,dB na
+dekádu.
 
 \begin{skyrentakeaway}
-Pro rychlé ověření zadání je nejlevnější varianta \textbf{A}: hotový 24GHz
-modul s~veřejným protokolem, data do týdne, bez RF návrhu. Plnou kontrolu
-nad měřením dá až varianta \textbf{C} --- a~na radaru je dosažitelná mnohem
-snáz než na uzavřeném optickém ASICu, kterým studie začala.
+Vzdálenost dá jedna rampa a~jedna malá FFT; interpolace vrcholu je přesná na
+milimetry. Dopplerův posuv 23\,cm vyruší trojúhelníková rampa. Přesnost pak
+určuje odstup signálu od šumu --- a~u~plošného cíle, jak ukáže další díl,
+hlavně geometrie odrazu.
 \end{skyrentakeaway}
 
 % ===========================================================================
-\skyrenchapter[\skyrenmodehowto]{Postup}{Jak zadání ověřit na stole}
+\skyrenchapter[\skyrenmodeexplanation]{Teorie: odraz}{Odraz od plošného cíle}
 % ===========================================================================
 
 \begin{skyrenglance}
-Pět kroků od objednávky modulu k~rozhodnutí o~finální variantě. Cílem
-prvního kola není hotový produkt, ale změřená čísla, která nahradí katalogové
-údaje v~díle~III.
+Hladká plocha se chová jako zrcadlo: odraz přichází z~malé skvrny kolem
+paty kolmice a~radar změří kolmou vzdálenost na milimetry. Drsná plocha
+rozptyluje: přispívá celá stopa svazku, odhad se posune a~náhodně kolísá
+(speckle). Rozhoduje drsnost vůči vlnové délce, ne materiál.
 \end{skyrenglance}
+
+\section{Tři modely odrazu}
+\skyrenlead{Bodový cíl, zrcadlová plocha a~drsná plocha mají tři různé
+radarové rovnice.}
+
+\textbf{Bodový cíl} s~radarovým průřezem $\sigma$ je výchozí případ radarové
+rovnice:
+\[
+P_\mathrm{r} = \frac{P_\mathrm{t}\,G^2\lambda^2\,\sigma}{(4\pi)^3 R^4}
+\]
+
+\textbf{Hladká rovina} větší než první Fresnelova zóna se chová jako zrcadlo.
+Radar v~ní vidí svůj obraz ve vzdálenosti $2R$, takže
+\[
+P_\mathrm{r} = \frac{P_\mathrm{t}\,G^2\lambda^2\,|\Gamma|^2}{(4\pi)^2 (2R)^2}
+\]
+kde $\Gamma$ je činitel odrazu materiálu. Odraz vzniká v~\skyrenterm{první
+Fresnelově zóně}, skvrně o~poloměru $\sqrt{\lambda R/2}$ kolem paty kolmice
+z~radaru na rovinu. Na 5\,m to je 18\,cm, zatímco stopa svazku 22$^\circ$ má
+poloměr kolem 1\,m. Zeď je tedy pro radar „nekonečné zrcadlo“.
+
+\textbf{Drsná rovina} rozptyluje difúzně a~každý kousek plochy přispívá
+podle \skyrenterm{koeficientu zpětného rozptylu} $\sigma^0$ (m$^2$ na
+m$^2$ plochy). Efektivní průřez je $\sigma = \sigma^0 R^2 \Omega_\mathrm{ef}$,
+kde $\Omega_\mathrm{ef}$ je prostorový úhel svazku vážený dvoucestným
+diagramem; pro gaussovský svazek s~šířkou $\theta_3$ platí
+$\Omega_\mathrm{ef} = \pi\theta_3^2/(8\ln 2)$. Protože zisk antény
+$G \propto 1/\theta_3^2$, vychází
+\[
+P_\mathrm{r} \propto \frac{G}{R^2}
+\]
+Oba plošné případy tedy klesají s~$R^2$, ne s~$R^4$. U~drsné plochy navíc
+větší anténa signál skoro nezlepší, protože užší svazek ozáří menší plochu.
+
+\section{Hladký, nebo drsný?}
+\skyrenlead{O~chování plochy rozhoduje drsnost ve srovnání s~vlnovou délkou.
+Na 24\,GHz leží hranice kolem 1,5\,mm.}
+
+Nerovnosti o~střední výšce $h$ rozfázují odražené vlny. Zrcadlová
+(koherentní) složka odrazu klesne podle \skyrenterm{Rayleighova kritéria}
+o~faktor
+\[
+\rho = \exp\!\left[-\left(\frac{4\pi h\cos\theta_\mathrm{i}}{\lambda}\right)^2\right]
+\]
+kde $\theta_\mathrm{i}$ je úhel dopadu. Na 24\,GHz to dává pokles o~1,1\,dB
+při $h = 0{,}5$\,mm, 4,4\,dB při 1\,mm, 18\,dB při 2\,mm a~40\,dB při 3\,mm.
+Obvyklá hranice je $h \approx \lambda/8 = 1{,}6$\,mm.
+
+\begin{skyrentable}{4}{Typické povrchy na 24\,GHz. Drsnosti a~permitivity
+jsou orientační hodnoty, ne měření.}
+\skyrenth{Povrch} & \skyrenth{Drsnost $h$} & \skyrenth{Chování} & \skyrenth{$|\Gamma|$ kolmo} \\
+\midrule
+plech & $\ll$\,0,1\,mm & zrcadlové & 1 (0\,dB) \\
+hladký beton, omítka & $\approx$\,0,5--1\,mm & převážně zrcadlové & $\approx$\,0,40 ($-8$\,dB) \\
+hoblované dřevo & $<$\,0,5\,mm & zrcadlové & $\approx$\,0,17 ($-15$\,dB) \\
+sádrokarton & $<$\,0,5\,mm & zrcadlové & $\approx$\,0,25 ($-12$\,dB) \\
+řezané dřevo & $\approx$\,1--2\,mm & smíšené & $\approx$\,0,17 \\
+hrubý beton, cihla, kámen & $\approx$\,2--5\,mm & difúzní & --- \\
+\end{skyrentable}
+
+Činitel odrazu při kolmém dopadu je $\Gamma = (1-\sqrt{\varepsilon_\mathrm{r}})/(1+\sqrt{\varepsilon_\mathrm{r}})$.
+Pro beton s~$\varepsilon_\mathrm{r} \approx 5{,}5$ vychází 0,40, pro suché
+dřevo s~$\varepsilon_\mathrm{r} \approx 2$ jen 0,17. Dřevo je tedy nejslabší
+zrcadlo, ale rozpočet výkonu v~dílu Návrh ukáže, že i~tak zbývá přes
+40\,dB odstupu od šumu.
+
+\section{Zrcadlový odraz měří kolmou vzdálenost}
+\skyrenlead{Hladká plocha nemá žádný posun od stopy svazku. Při náklonu ale
+měří jinou vzdálenost, než je vzdálenost v~ose, a~slábne.}
+
+Protože zrcadlový odraz přichází jen z~první Fresnelovy zóny kolem paty
+kolmice, radar změří \emph{kolmou vzdálenost k~rovině} $R_\perp = R\cos\alpha$,
+kde $\alpha$ je náklon plochy vůči ose senzoru. Stopa svazku se neuplatní
+a~chyba je daná jen šumem.
+
+Při náklonu leží pata kolmice mimo osu svazku a~odraz zeslábne podle
+dvoucestného diagramu. Pro svazek 22$^\circ$ je to $-6$\,dB při
+11$^\circ$, $-11$\,dB při 15$^\circ$, $-20$\,dB při 20$^\circ$ a~$-31$\,dB
+při 25$^\circ$. Hladký plech nakloněný o~víc než zhruba 20$^\circ$ proto
+nevrátí skoro nic --- nemá difúzní složku, která by zbyla.
+
+\begin{skyrennote}[Kterou vzdálenost vlastně měříme]
+Při náklonu 15$^\circ$ je na 5\,m rozdíl mezi kolmou vzdáleností a~vzdáleností
+v~ose kolem 17\,cm. Není to chyba měření. U~hladkých ploch radar měří
+kolmou vzdálenost, u~drsných zhruba vzdálenost v~ose. Aplikace musí vědět,
+kterou z~nich potřebuje.
+\end{skyrennote}
+
+\section{Stopa svazku a~posun odhadu}
+\skyrenlead{U~drsné plochy přispívá celá stopa. Její zakřivení vůči radaru
+posune odhad za skutečnou vzdálenost.}
+
+\begin{skyrenfigure}{Stopa svazku na zdi (bokorys, úhel zveličený). Kružnice
+konstantní vzdálenosti (červeně) protíná zeď jen v~ose; okraje stopy leží
+dál o~$\Delta R$. U~drsné plochy padnou všechny příspěvky do jedné buňky
+a~posunou odhad za kolmou vzdálenost.}{fig:stopa}
+\begin{tikzpicture}[x=1.1mm, y=1.1mm, line width=1pt,
+  every node/.style={font=\fontsize{8}{10}\selectfont}]
+  \draw[skyrenInk, fill=skyrenNeutral400] (-6,-3) rectangle (0,3);
+  \node[anchor=east] at (-7,0) {radar};
+  \draw[skyrenNeutral600, line width=0.7pt] (0,0) -- (60,21.84);
+  \draw[skyrenNeutral600, line width=0.7pt] (0,0) -- (60,-21.84);
+  \draw[skyrenNeutral600, dashed, line width=0.7pt] (0,0) -- (60,0);
+  \node[anchor=south] at (30,0.5) {$R$};
+  \draw[skyrenRed, line width=0.9pt] (56.38,-20.52) arc[start angle=-20, end angle=20, radius=60];
+  \draw[skyrenInk, line width=2.2pt] (60,-27) -- (60,27);
+  \node[anchor=west] at (61.5,-24) {zeď};
+  \draw[skyrenInk, line width=0.7pt] (56.38,20.52) -- (60,21.84);
+  \node[anchor=south east] at (57,21.5) {$\Delta R$};
+  \draw[skyrenNeutral600, line width=0.6pt] (14,0) arc[start angle=0, end angle=20, radius=14];
+  \node[anchor=west] at (15,2.6) {$\theta/2$};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Vzdálenost k~bodu plochy ve směru $(\theta_x, \theta_y)$ od osy je pro plochu
+nakloněnou o~$\alpha$ kolem osy $y$ přibližně
+\[
+R(\theta_x,\theta_y) \approx R\left[1 + \theta_x\tan\alpha
+  + \theta_x^2\left(\tfrac{1}{2}+\tan^2\alpha\right) + \tfrac{1}{2}\theta_y^2\right]
+\]
+Rozdíly vzdáleností ve stopě jsou mnohem menší než buňka 60\,cm, takže vrchol
+FFT leží ve výkonově váženém průměru vzdáleností. Pro gaussovský dvoucestný
+diagram s~rozptylem $\sigma_\theta^2 = \theta_3^2/(16\ln 2)$ v~každé ose
+lineární člen vypadne a~zbude \skyrenterm{posun od stopy svazku}
+\[
+b = R\,\sigma_\theta^2\,(1+\tan^2\alpha) = \frac{R\,\theta_3^2}{16\ln 2}\,(1+\tan^2\alpha)
+\]
+(obr.~\ref{fig:stopa}). U~kolmé zdi se simulace od vzorce liší o~méně než
+desetinu, u~nakloněné do pětiny, zčásti kvůli statistickému rozptylu
+simulace.
+
+\begin{skyrentable}{3}{Posun odhadu od stopy svazku pro drsnou zeď kolmo
+k~ose. Hodnota je deterministická a~odečítá se kalibrací.}
+\skyrenth{HPBW} & \skyrenth{Posun na 5\,m} & \skyrenth{Posun na 30\,m} \\
+\midrule
+42$^\circ$ & 24\,cm & 1,45\,m \\
+22$^\circ$ & 6,6\,cm & 40\,cm \\
+14$^\circ$ & 2,7\,cm & 16\,cm \\
+10$^\circ$ & 1,4\,cm & 8,2\,cm \\
+\end{skyrentable}
+
+Posun je pro známou vzdálenost a~svazek spočitatelný, takže se odečte. Náklon
+ho zvětší o~$\tan^2\alpha$, při 15$^\circ$ o~7\,\%. Zbytek po kalibraci je na
+5\,m se svazkem 22$^\circ$ kolem 0,5\,cm z~náklonu, k~tomu neznámý příspěvek
+toho, že $\sigma^0$ závisí na úhlu dopadu a~váží stopu nesymetricky. Počítáme
+s~celkem kolem 1\,cm, ale ověřené to není.
+
+\section{Speckle}
+\skyrenlead{Příspěvky drsné plochy se sčítají s~náhodnými fázemi. Odhad
+vzdálenosti proto kolísá, a~u~nakloněné plochy hodně.}
+
+Každý kousek drsné plochy vrací vlnu s~náhodnou fází. Jejich součet má
+náhodnou amplitudu i~náhodnou polohu vrcholu ve spektru; tomuto jevu se
+říká \skyrenterm{speckle}. Střední hodnota odhadu je posun $b$ z~předchozí
+sekce, kolem ní odhad kolísá zhruba o~efektivní rozptyl vzdáleností ve stopě
+\[
+s_R \approx R\,\sigma_\theta\sqrt{\sigma_\theta^2 + \tan^2\alpha}
+\]
+U~kolmé plochy je $s_R = b$, u~nakloněné převládne lineární člen
+$R\,\sigma_\theta\tan\alpha$ a~kolísání vzroste několikanásobně.
+Když amplituda odrazu náhodně klesne (hluboký útlum), poloha vrcholu ujede
+výrazně víc; takové měření je lepší zahodit.
+
+\begin{skyrentable}{4}{Kolísání jednoho měření na drsné zdi ve 5\,m. Simulace
+Monte Carlo s~vyřazením 10\,\% nejslabších měření, srovnaná s~modelem.}
+\skyrenth{HPBW} & \skyrenth{Náklon} & \skyrenth{Simulace} & \skyrenth{Model $s_R$} \\
+\midrule
+22$^\circ$ & 0$^\circ$ & 7,1\,cm & 6,7\,cm \\
+22$^\circ$ & 15$^\circ$ & 15,8\,cm & 16,8\,cm \\
+14$^\circ$ & 0$^\circ$ & 3,0\,cm & 2,7\,cm \\
+14$^\circ$ & 15$^\circ$ & 10,6\,cm & 10,2\,cm \\
+10$^\circ$ & 0$^\circ$ & 1,3\,cm & 1,4\,cm \\
+10$^\circ$ & 15$^\circ$ & 7,2\,cm & 7,2\,cm \\
+\end{skyrentable}
+
+Kolísání pomůže jen průměrování přes \emph{nezávislé} realizace speckle. Při
+přibližování se mění relativní fáze příspěvků a~nová realizace vznikne
+zhruba po každých
+\[
+\delta R \approx \frac{\lambda R}{4\,s_R}
+\]
+přiblížení, na 5\,m u~kolmé zdi a~svazku 22$^\circ$ po 24\,cm. Průměr přes
+dráhu přiblížení $L$ má kolísání
+\[
+\sigma_\mathrm{prům} \approx \sqrt{\frac{s_R\,\lambda R}{4L}}
+\]
+Pro $L = 1{,}2$\,m (5\,ms při 240\,m/s) dává model 2,9\,cm u~kolmé zdi
+a~4,7\,cm při náklonu 15$^\circ$; simulace přibližování dala 2,3\,cm
+a~5,8\,cm.
+
+\begin{skyrengotcha}[Průměruje se dráha, ne čas]
+Speckle se obnovuje pohybem, ne časem. Při 240\,m/s dá 5\,ms dost nezávislých
+měření, při 10\,m/s by stejné okno vystačilo jen na 5\,cm dráhy a~kolísání by
+zůstalo skoro celé. Když senzor stojí, je speckle zamrzlý a~chyba se stane
+pevnou chybou daného místa. Pásmo 250\,MHz je navíc příliš úzké na to, aby
+pomohlo střídání kmitočtu.
+\end{skyrengotcha}
+
+\section{Tenké dielektrické desky}
+\skyrenlead{Dřevěná deska nebo sádrokarton odrážejí z~přední i~zadní strany
+a~oba odrazy padnou do jedné buňky.}
+
+Část vlny projde do materiálu s~nízkou permitivitou a~odrazí se od zadní
+strany. Ta se radaru jeví posunutá o~$\sqrt{\varepsilon_\mathrm{r}}\,d$; pro
+2cm překližku s~$\varepsilon_\mathrm{r} \approx 2$ o~2,8\,cm. Oba odrazy
+leží v~jedné buňce a~interferují podle tloušťky desky, takže vrchol se posune
+o~část této vzdálenosti. Útlum ve vlhkém dřevě zadní odraz zeslabí. Počítáme
+s~posunem řádově 1\,cm, ověřené to není.
+
+\begin{skyrentakeaway}
+Hladké plochy dávají zrcadlový odraz bez posunu od stopy: chyba pod
+centimetr, měřená je kolmá vzdálenost. Nejhorším cílem pro přesnost je
+drsná nakloněná plocha: jedno měření kolísá o~15\,cm i~víc a~pomůže jen užší
+svazek a~průměrování přes dráhu přiblížení.
+\end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenchapter[\skyrenmodeexplanation]{Teorie: anténa}{Anténa a čočka}
+% ===========================================================================
+
+\begin{skyrenglance}
+Šířka svazku je daná průměrem apertury ve vlnových délkách, takže na 24\,GHz
+se do $\varnothing$\,35\,mm vejde jeden svazek kolem 22$^\circ$. Plastová
+hyperbolická čočka ho vytvoří z~malé antény levně. Zisk čočky ale omezuje
+vysílací výkon: vyzářený výkon v~pásmu 24\,GHz nesmí přesáhnout 100\,mW.
+\end{skyrenglance}
+
+\section{Apertura, svazek a~zisk}
+\skyrenlead{Tři vztahy, které určují velikost senzoru.}
+
+Pro kruhovou aperturu o~průměru $D$ platí přibližně
+\[
+\theta_3 \approx (58\ \text{až}\ 70)\,\frac{\lambda}{D}, \qquad
+G \approx \eta\left(\frac{\pi D}{\lambda}\right)^2, \qquad
+R_\mathrm{ff} = \frac{2D^2}{\lambda}
+\]
+Šířka svazku $\theta_3$ ve stupních platí s~koeficientem 58 pro rovnoměrné
+osvětlení, se 70 pro osvětlení klesající k~okraji. Činitel využití apertury
+$\eta$ bývá 0,5--0,6. Vzdálenost $R_\mathrm{ff}$ je začátek dalekého pole.
+Pro $\varnothing$\,35\,mm na 24\,GHz vychází $\theta_3 \approx 21$--23$^\circ$,
+$G \approx 16$\,dBi a~$R_\mathrm{ff} \approx 20$\,cm.
+
+\begin{skyrentable}{4}{Průměr apertury podle pásma a~požadované šířky svazku.}
+\skyrenth{Pásmo} & \skyrenth{$\lambda$} & \skyrenth{$\varnothing$ pro 22$^\circ$} & \skyrenth{$\varnothing$ pro 10$^\circ$} \\
+\midrule
+24\,GHz & 12,4\,mm & $\approx$\,30--35\,mm & $\approx$\,75\,mm \\
+60\,GHz & 5,0\,mm & $\approx$\,10--12\,mm & $\approx$\,30--35\,mm \\
+\end{skyrentable}
+
+Do $\varnothing$\,35\,mm se tedy na 24\,GHz vejde právě jeden svazek kolem
+22$^\circ$. Proto návrh používá \textbf{jednu anténu} pro vysílání i~příjem.
+Dvě antény vedle sebe by měly svazek zhruba 23$\times$42$^\circ$ a~podle
+tabulky posunů v~dílu Odraz od plošného cíle několikanásobně větší posun i~kolísání. Svazek
+10$^\circ$, který by pomohl na drsných nakloněných plochách, se do
+$\varnothing$\,35\,mm vejde jen na 60\,GHz.
+
+\section{Hyperbolická čočka}
+\skyrenlead{Tvar plochy plyne z~Fermatova principu: všechny paprsky z~ohniska
+musí mít za čočkou stejnou optickou dráhu.}
+
+Zdroj leží v~ohnisku ve vzdálenosti $f$ před vrcholem čočky. Paprsek, který
+dopadne na plochu v~bodě $(x, r)$, má urazit stejnou optickou dráhu jako
+paprsek v~ose, aby za rovnou plochou vyšla rovinná vlna. Uvnitř materiálu
+s~indexem lomu $n$ se dráha násobí $n$, takže
+\[
+\sqrt{x^2 + r^2} = f + n\,(x - f)
+\]
+Po dosazení $x = f + z$, kde $z$ je výška profilu nad vrcholem, vyjde
+\[
+r^2 = 2\,(n-1)\,f\,z + (n^2-1)\,z^2
+\]
+tedy hyperbola. Parametrický model podle tohoto vztahu je
+v~\skyrencmd{hw/lens/lens\_24ghz.scad}.
+
+\begin{skyrenfigure}{Hyperbolická čočka z~PETG ($n = 1{,}62$, $f = 28$\,mm,
+$\varnothing$\,35\,mm), zvětšeno. Paprsky z~ohniska se na hyperbolické
+ploše lámou tak, že za čočkou běží rovnoběžně.}{fig:cocka}
+\begin{tikzpicture}[x=1.7mm, y=1.7mm, line width=0.8pt,
+  every node/.style={font=\fontsize{8}{10}\selectfont}]
+  \fill[skyrenNeutral400] (34.71,17.50) -- (33.21,15.00) -- (31.82,12.50)
+    -- (30.57,10.00) -- (29.51,7.50) -- (28.70,5.00) -- (28.18,2.50)
+    -- (28.00,0.00) -- (28.18,-2.50) -- (28.70,-5.00) -- (29.51,-7.50)
+    -- (30.57,-10.00) -- (31.82,-12.50) -- (33.21,-15.00) -- (34.71,-17.50)
+    -- (36.21,-17.50) -- (36.21,17.50) -- cycle;
+  \draw[skyrenInk] (34.71,17.50) -- (33.21,15.00) -- (31.82,12.50)
+    -- (30.57,10.00) -- (29.51,7.50) -- (28.70,5.00) -- (28.18,2.50)
+    -- (28.00,0.00) -- (28.18,-2.50) -- (28.70,-5.00) -- (29.51,-7.50)
+    -- (30.57,-10.00) -- (31.82,-12.50) -- (33.21,-15.00) -- (34.71,-17.50)
+    -- (36.21,-17.50) -- (36.21,17.50) -- cycle;
+  \foreach \r/\x in {0/28.00, 6/28.99, 12/31.56, 16/33.80, -6/28.99, -12/31.56, -16/33.80} {
+    \draw[skyrenRed, line width=0.6pt] (0,0) -- (\x,\r) -- (48,\r);
+  }
+  \fill[skyrenInk] (0,0) circle (0.7);
+  \node[anchor=east] at (-1,0) {ohnisko};
+  \draw[skyrenNeutral600, line width=0.5pt] (0,-21) -- (28,-21);
+  \draw[skyrenNeutral600, line width=0.5pt] (0,-20) -- (0,-22);
+  \draw[skyrenNeutral600, line width=0.5pt] (28,-20) -- (28,-22);
+  \node[anchor=north] at (14,-21.5) {$f = 28$\,mm};
+  \draw[skyrenNeutral600, line width=0.5pt] (51,-17.5) -- (51,17.5);
+  \draw[skyrenNeutral600, line width=0.5pt] (50,-17.5) -- (52,-17.5);
+  \draw[skyrenNeutral600, line width=0.5pt] (50,17.5) -- (52,17.5);
+  \node[anchor=west] at (52.5,0) {$D = 35$\,mm};
+  \node[anchor=east] at (33.5,-19.5) {hyperbolická plocha};
+  \node[anchor=west] at (36.8,-19.5) {rovná plocha};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Obr.~\ref{fig:cocka} ukazuje hlavní vlastnost: hyperbolická plocha míří
+k~anténě, rovná plocha k~cíli. Fázový střed antény musí ležet přesně
+v~ohnisku. Posun o~pár milimetrů podél osy svazek rozostří, posun napříč ho
+vychýlí.
+
+\section{Ztráty, odrazy a~protiodrazná vrstva}
+\skyrenlead{Tištěný plast má na 24\,GHz zanedbatelné ztráty. Víc vadí odrazy
+na plochách, které se vracejí do přijímače.}
+
+Na každé ploše se odrazí podíl výkonu
+\[
+|\Gamma|^2 = \left(\frac{n-1}{n+1}\right)^2
+\]
+pro PETG 5,6\,\% ($-12{,}5$\,dB), což dělá 0,25\,dB ztráty na plochu.
+Odražená vlna se vrací do antény a~přidá se k~vazbě vysílače do přijímače.
+Dielektrické ztráty jsou
+\[
+\alpha_\mathrm{dB} \approx 27{,}3\,\frac{n\tan\delta}{\lambda_0}
+\]
+na jednotku délky; pro PETG s~$\tan\delta \approx 0{,}01$ (odhad) to je
+0,036\,dB/mm, ve středu čočky tlusté 8\,mm tedy kolem 0,3\,dB.
+
+Odrazy odstraní \skyrenterm{protiodrazná vrstva} tloušťky $\lambda_0/4n_\mathrm{m}$
+s~indexem lomu $n_\mathrm{m} = \sqrt{n}$. Pro PETG vychází $n_\mathrm{m} = 1{,}27$
+($\varepsilon_\mathrm{r} = 1{,}62$) a~tloušťka 2,4\,mm. Tisk nabízí levný
+trik: vrstvu vytisknout se sníženou výplní. Při lineárním směšování
+permitivit s~vzduchem odpovídá $\varepsilon_\mathrm{r} = 1{,}62$ výplni kolem
+38\,\%. Je to orientační výpočet; skutečnou permitivitu je třeba změřit.
+
+\section{Buzení mimo osu a~přesah}
+\skyrenlead{Anténa mimo ohnisko vychýlí svazek; záření, které čočku mine,
+svítí do stran.}
+
+Posune-li se fázový střed antény o~$d$ napříč osou, svazek se vychýlí zhruba
+o~úhel $d/f$ na opačnou stranu. U~modulu s~oddělenou vysílací a~přijímací
+anténou se tak jejich svazky pod jednou čočkou rozejdou. Při rozestupu
+10\,mm a~$f = 28$\,mm to je $\pm$\,10$^\circ$: společný svazek se zúží
+a~ztratí několik dB. Na vlastní desce s~jednou anténou tento problém odpadá.
+
+Okraj čočky vidí anténa pod úhlem $\arctan(D/2f) = 32^\circ$. Co vyzáří pod
+větším úhlem, čočku mine (\skyrenterm{přesah}) a~svítí do stran, kde vrací
+odrazy od bližších ploch. Mezi anténu a~čočku proto patří trubka, zevnitř
+vodivá nebo s~absorbérem.
+
+\section{Vyzářený výkon}
+\skyrenlead{Zisk čočky se počítá do vyzářeného výkonu. S~16\,dBi smí vysílač
+dávat nejvýš 4\,dBm.}
+
+V~pásmu 24,00--24,25\,GHz je pro zařízení krátkého dosahu povolený
+ekvivalentní izotropně vyzářený výkon (\skyrenterm{EIRP}) 100\,mW, tedy
+20\,dBm (ERC/REC 70-03, příloha~1; aktuální znění je třeba ověřit). EIRP je
+součet vysílacího výkonu a~zisku antény, takže s~čočkou 16\,dBi smí vysílač
+dávat nejvýš 4\,dBm. Hotový modul, který je certifikovaný s~vlastní anténou,
+může po přidání čočky limit překročit. Vysílací výkon je pak nutné ve
+firmwaru snížit. Rozpočet výkonu v~dílu Návrh už s~4\,dBm počítá.
+
+\begin{skyrentakeaway}
+Čočka $\varnothing$\,35\,mm dá na 24\,GHz svazek kolem 22$^\circ$ a~zisk
+16\,dBi za cenu plastu. Její tvar plyne přímo z~Fermatova principu, ztráty
+jsou zanedbatelné a~odrazy lze potlačit vrstvou s~řidší výplní. Zisk ale
+snižuje povolený vysílací výkon na 4\,dBm.
+\end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenchapter[\skyrenmodereference]{Návrh}{Doporučené řešení}
+% ===========================================================================
+
+\begin{skyrenglance}
+Pásmo 24\,GHz, jedna anténa s~čočkou $\varnothing$\,35\,mm, integrovaný
+radarový čip s~trojúhelníkovou rampou a~levný mikrokontrolér. Tabulky
+uvádějí profil vysílání, rozpočet výkonu, rozpočet chyby, čočku a~cenu.
+Hodnoty čipu, které nejsou ověřené, jsou takto označené.
+\end{skyrenglance}
+
+\section{Blokové schéma}
+\skyrenlead{Čtyři bloky: čočka s~anténou, vazebník, radarový čip
+a~mikrokontrolér.}
+
+\begin{skyrenfigure}{Blokové schéma senzoru. Vazebník spojuje vysílač
+a~přijímač čipu do jedné antény; čip vzorkuje mezifrekvenční signál
+a~mikrokontrolér z~něj počítá vzdálenost.}{fig:blok}
+\begin{tikzpicture}[x=1mm, y=1mm, line width=0.8pt,
+  every node/.style={font=\fontsize{7.5}{9}\selectfont, align=center}]
+  \draw[skyrenInk] (0,0) rectangle (24,18);
+  \node at (12,9) {čočka\\+ anténa\\$\varnothing$\,35\,mm};
+  \draw[skyrenNeutral600, <->] (24,9) -- (31,9);
+  \draw[skyrenInk] (31,0) rectangle (51,18);
+  \node at (41,9) {vazebník\\(rat-race)};
+  \draw[skyrenNeutral600, <-] (51,13) -- (59,13);
+  \node[anchor=south] at (55,13) {Tx};
+  \draw[skyrenNeutral600, ->] (51,5) -- (59,5);
+  \node[anchor=north] at (55,5) {Rx};
+  \draw[skyrenRed] (59,0) rectangle (93,18);
+  \node at (76,9) {S3KM111L\\PLL, rampa $\uparrow\downarrow$,\\Tx, Rx, ADC};
+  \draw[skyrenNeutral600, ->] (93,9) -- (100,9);
+  \node[anchor=south] at (96.5,9) {SPI};
+  \draw[skyrenInk] (100,0) rectangle (132,18);
+  \node at (116,9) {MCU\\okno, FFT, interpolace,\\$\uparrow\downarrow$, tracking};
+  \draw[skyrenNeutral600, ->] (132,9) -- (142,9);
+  \node[anchor=south] at (137.5,9.5) {UART};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Obr.~\ref{fig:blok} ukazuje cílovou vlastní desku. Při vývoji na hacknutém
+modulu LD2450 místo vazebníku a~jedné antény slouží jeho oddělené antény
+a~čočka sedí nad oběma.
+
+\section{Profil vysílání}
+\skyrenlead{Cílový profil pro dosah do 5\,m.}
+
+\begin{skyrentable}{3}{Cílový profil. Zda ho integrovaný čip umí nastavit,
+zejména délku chirpu, zatím nevíme.}
+\skyrenth{Parametr} & \skyrenth{Hodnota} & \skyrenth{Důvod} \\
+\midrule
+Šířka přeladění & 250\,MHz & celé volné pásmo 24\,GHz \\
+Rampa & trojúhelníková & vyruší Dopplerův posuv \\
+Délka chirpu & 10\,\textmu s & $f_\mathrm{b}$ nad pásmem blikavého šumu \\
+$f_\mathrm{b}$ na 1 / 5 / 8\,m & 167\,kHz / 833\,kHz / 1,33\,MHz & \\
+Vzorkování & 4\,MSPS, I/Q & 40 vzorků, Hann, FFT 64 nebo 128 \\
+Vysílací výkon & $\leq$\,4\,dBm & EIRP 20\,dBm se ziskem 16\,dBi \\
+Výstup & 1 měření na pár chirpů & 4--10\,kHz podle čipu a~MCU \\
+\end{skyrentable}
+
+Integrovaný čip \skyrencmd{ICLegend S3KM111L} podle databriefu umí
+trojúhelníkovou rampu a~až 8\,000 chirpů za sekundu, tedy kolem 4\,kHz měření.
+Pokud ale nepodporuje chirp výrazně kratší než periodu 125\,\textmu s, klesne
+rozdílová frekvence na 1\,m na desítky kHz a~měření pod 1--2\,m se zhorší.
+Na 5\,m to nevadí.
+
+\section{Rozpočet výkonu}
+\skyrenlead{Na 5\,m je signálu dost i~pro nejslabší povrch.}
+
+\begin{skyrentable}{3}{Rozpočet výkonu na 5\,m. Vysílač 4\,dBm, čočka
+16\,dBi, vazebník 3,5\,dB v~každém směru, šum $-107$\,dBm na buňku (šumové
+číslo 15\,dB je odhad).}
+\skyrenth{Cíl} & \skyrenth{Přijatý výkon} & \skyrenth{SNR po FFT} \\
+\midrule
+plech, zrcadlově & $-51$\,dBm & 56\,dB \\
+hladký beton, zrcadlově & $-59$\,dBm & 48\,dB \\
+sádrokarton, zrcadlově & $-63$\,dBm & 44\,dB \\
+suché dřevo, zrcadlově & $-66$\,dBm & 41\,dB \\
+drsný povrch, $\sigma^0 = -10$\,dB & $-77$\,dBm & 30\,dB \\
+drsný povrch, $\sigma^0 = -20$\,dB & $-87$\,dBm & 20\,dB \\
+\end{skyrentable}
+
+Mezi nejsilnějším případem (plech zblízka) a~nejslabším (drsný povrch
+na 5\,m) je přes 60\,dB. K~tomu vazba vysílače do přijímače kolem
+$-15$\,dBm. Proto horní propust s~+20\,dB na dekádu a~podle potřeby řízení
+zesílení.
+
+\section{Rozpočet chyby}
+\skyrenlead{Na hladkých plochách pod centimetr, na drsných rozhoduje speckle
+a~průměrování přes dráhu přiblížení.}
+
+\begin{skyrentable}{4}{Rozpočet chyby na 5\,m se svazkem 22$^\circ$. Hodnoty
+„po průměrování“ platí pro průměr přes 1,2\,m přiblížení (5\,ms při
+240\,m/s), šum pro drsný povrch s~$\sigma^0 = -15$\,dB. Jde o~výpočty
+a~simulace, ne o~měření.}
+\skyrenth{Zdroj chyby} & \skyrenth{Hladký} & \skyrenth{Drsný, kolmo} & \skyrenth{Drsný, 15$^\circ$} \\
+\midrule
+šum, jedno měření & 0,1--0,4\,cm & 1,9\,cm & 1,9\,cm \\
+posun od stopy po kalibraci & 0 & $\approx$\,1\,cm & $\approx$\,1--1,5\,cm \\
+speckle, jedno měření & 0 & 7\,cm & 16\,cm \\
+Dopplerův posuv po průměru ramp & $\approx$\,0 & $\approx$\,0 & $\approx$\,0 \\
+\midrule
+\textbf{celkem, jedno měření} & $<$\,0,5\,cm & \textbf{$\approx$\,7\,cm} & \textbf{$\approx$\,16\,cm} \\
+\textbf{celkem po průměrování} & $<$\,0,5\,cm & \textbf{$\approx$\,3\,cm} & \textbf{$\approx$\,5--6\,cm} \\
+\end{skyrentable}
+
+Zadání 5\,cm tedy splní hladké plochy vždy a~drsné plochy kolmo k~ose po
+průměrování. Drsná plocha nakloněná o~15$^\circ$ vychází na hranici. Pomohl
+by užší svazek (s~10$^\circ$ vychází model na 3\,cm), ten se ale do
+$\varnothing$\,35\,mm na 24\,GHz nevejde. Druhou možností je delší dráha
+průměrování, pokud to aplikace dovolí.
+
+\section{Čočka}
+\skyrenlead{Parametry pro tisk a~obrábění.}
+
+\begin{skyrentable}{4}{Čočka $\varnothing$\,35\,mm, ohnisková vzdálenost
+28\,mm, okraj 1,5\,mm. Indexy lomu tištěných plastů jsou orientační.}
+\skyrenth{Materiál} & \skyrenth{$n$} & \skyrenth{Tloušťka ve středu} & \skyrenth{Výška od antény} \\
+\midrule
+HDPE & 1,52 & 9,3\,mm & 37\,mm \\
+PTFE & 1,45 & 10,3\,mm & 38\,mm \\
+PETG (tisk, 100\,\% výplň) & $\approx$\,1,62 & 8,2\,mm & 36\,mm \\
+PLA (tisk, 100\,\% výplň) & $\approx$\,1,65 & 7,9\,mm & 36\,mm \\
+\end{skyrentable}
+
+Očekávaná šířka svazku je 21--23$^\circ$, zisk kolem 16\,dBi a~daleké pole
+začíná zhruba ve 20\,cm. Pro první prototypy stačí tisk z~PETG; pro další
+iterace je lepší HDPE se známými vlastnostmi a~nulovými ztrátami.
+
+\section{Cena}
+\skyrenlead{Materiál na kus při 500 kusech. Rozhoduje radarový čip.}
+
+\begin{skyrentable}{3}{Varianty materiálu na kus. Cena čipu S3KM111L je
+odhad z~cen hotových modulů, ne nabídka.}
+\skyrenth{Varianta} & \skyrenth{Radarový čip} & \skyrenth{Celkem} \\
+\midrule
+Integrovaný SoC (doporučeno) & S3KM111L, $\approx$\,1--2\,€ (neověřeno) & $\approx$\,4--7\,€ \\
+Záloha s~vlastním front-endem & BGT24MTR11, $\approx$\,10\,€ & $\approx$\,15\,€ \\
+60\,GHz s~anténou v~pouzdře & Acconeer A121, $\approx$\,9\,\$ & $\approx$\,10--12\,€ \\
+\end{skyrentable}
+
+Integrovaný čip obsahuje vysílač, přijímač, PLL, generátor rampy a~ADC,
+takže odpadá rychlý ADC, generátor rampy i~teplotně kompenzovaný krystal.
+Rampa z~PLL je lineární, takže odpadá i~kalibrace linearity při výrobě.
+Stačí levný mikrokontrolér, který přijímá data a~počítá malé FFT. Anténa
+může být na FR4 nebo levném PTFE laminátu F4B: ztráty 2--3\,dB a~rozladění
+kvůli toleranci permitivity jsou při rezervě přes 20\,dB přijatelné.
+
+\begin{skyrenfigure}{Volba varianty. O~velikosti rozhoduje, kterou
+vzdálenost aplikace potřebuje.}{fig:volba}
+\begin{tikzpicture}[x=1mm, y=1mm, line width=1pt,
+  every node/.style={font=\fontsize{8}{10}\selectfont}]
+  \draw[skyrenInk] (-24,0) rectangle (24,10);
+  \node at (0,5) {Kterou vzdálenost potřebuješ?};
+  \draw[skyrenNeutral600, line width=0.6pt] (0,0) -- (0,-6);
+  \draw[skyrenNeutral600, line width=0.6pt] (-36,-6) -- (36,-6);
+  \draw[skyrenNeutral600, line width=0.6pt] (-36,-6) -- (-36,-13);
+  \draw[skyrenNeutral600, line width=0.6pt] (36,-6) -- (36,-13);
+  \node[anchor=south] at (-36,-5) {v~ose senzoru};
+  \node[anchor=south] at (36,-5) {k~nejbližšímu povrchu};
+  \draw[skyrenRed] (-58,-27) rectangle (-14,-13);
+  \node at (-36,-17) {úzký svazek $\approx$\,22$^\circ$};
+  \node at (-36,-22.5) {24\,GHz + čočka $\varnothing$\,35, 4--7\,€};
+  \draw[skyrenInk] (14,-27) rectangle (58,-13);
+  \node at (36,-17) {široký svazek stačí};
+  \node at (36,-22.5) {A121 bez čočky, $\approx$\,8$\times$8\,mm};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Široký svazek přirozeně měří nejbližší bod plochy. Pokud aplikaci stačí
+nejkratší vzdálenost k~povrchu, úzký svazek není potřeba a~velikost určí
+jen čip (obr.~\ref{fig:volba}). Pro nejbližší bod je ale potřeba jemné
+rozlišení, aby šla přesně najít náběžná hrana odrazu --- proto v~pravé
+větvi 60\,GHz, ne 24\,GHz s~buňkou 60\,cm.
+
+\begin{skyrentakeaway}
+Doporučená varianta stojí na integrovaném 24GHz čipu za jednotky eur, jedné
+anténě přes $\varnothing$\,35\,mm a~tištěné čočce. Na hladkých plochách měří
+pod centimetr, na drsných kolmých po průměrování kolem 3\,cm. Drsné nakloněné
+plochy a~rozšíření na 3\,cm do 30\,m potřebují užší svazek, v~tomto průměru
+tedy 60\,GHz.
+\end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenchapter[\skyrenmodehowto]{Postup}{Čip z~levného modulu}
+% ===========================================================================
+
+\begin{skyrenglance}
+Dokumentace k~čipu S3KM111L není veřejná. Rychlejší cesta než čekat na NDA
+je rozebrat hotový modul HLK-LD2450, vytáhnout z~jeho mikrokontroléru
+inicializaci čipu a~nahradit firmware vlastním. Modul slouží jako vývojová
+platforma; finální tvar $\varnothing$\,35\,mm bude vlastní deska.
+\end{skyrenglance}
+
+\section{Co koupit}
+\skyrenlead{Dva moduly z~lokální nabídky a~vývojové pomůcky.}
+
+\begin{skyrentable}{3}{Nákupní seznam. Moduly jsou skladem v~ČR.}
+\skyrenth{Položka} & \skyrenth{Počet} & \skyrenth{Účel} \\
+\midrule
+HLK-LD2450 (FMCW, 1T2R, 44$\times$15\,mm) & 2--3 & hlavní cíl rozboru \\
+HLK-LD2451 (FMCW, $\pm$\,20$^\circ$, 70$\times$35\,mm) & 1 & reference laděná na rychlé cíle \\
+Převodník USB--UART & 1 & čtení výstupu modulu \\
+Ladicí sonda SWD (ST-Link, Pico) & 1 & čtení a~zápis firmwaru \\
+Logický analyzátor & 1 & odposlech rozhraní čip--MCU \\
+\end{skyrentable}
+
+Moduly \skyrencmd{HLK-LD2415H}, \skyrencmd{HW-MS03} a~\skyrencmd{RCWL-0516}
+nepoužíváme. Jsou to CW dopplerovské senzory, měří jen pohyb nebo rychlost,
+vzdálenost z~nich žádné zpracování nedostane.
 
 \section{Kroky}
 \skyrenlead{Pořadí je závazné --- každý krok odstraňuje nejistotu, na které
-stojí ten další.}
+stojí další.}
 
 \begin{enumerate}
-\item \textbf{Určete požadovaný dosah.} Bez něj nelze vybrat variantu.
-      Převeďte ho na čas: při 240\,m/s dá 30\,m jen 125\,ms, 100\,m dá 417\,ms,
-      200\,m dá 833\,ms. Rozhodněte, kolik času potřebujete, ne kolik metrů.
-\item \textbf{Objednejte modul varianty A} a~zprovozněte čtení protokolu.
-      Cílem je mít proud dat, ne finální řešení.
-\item \textbf{Změřte statickou charakteristiku} na známých vzdálenostech
-      proti cíli, jehož odrazivost odpovídá reálné aplikaci. Porovnejte
-      s~katalogovým údajem --- rozdíl bude, jde o~to znát jeho velikost.
-\item \textbf{Ověřte chování při výpadku odrazu.} Nasměrujte radar mimo cíl
-      a~zaznamenejte, co modul hlásí a~jak dlouho trvá, než se zotaví.
-      Při 240\,m/s je 100\,ms bez dat 24\,metrů.
-\item \textbf{Změřte skutečnou latenci} od události k~dostupné hodnotě,
-      včetně přenosu a~filtru. Tohle číslo v~žádném datovém listu není
-      a~přitom rozhoduje o~použitelnosti víc než přesnost.
+\item \textbf{Nafotit obě strany LD2450} a~určit radarový čip, mikrokontrolér
+      a~piny SWD. Z~fotek se zároveň určí poloha vysílací a~přijímací antény
+      pro umístění čočky.
+\item \textbf{Vytáhnout firmware přes SWD.} Obsahuje inicializační sekvenci
+      čipu, tedy registry, ke kterým chybí dokumentace. Pokud je paměť
+      zamčená, zbývá odposlech rozhraní.
+\item \textbf{Odposlechnout rozhraní mezi čipem a~MCU} logickým analyzátorem
+      při startu a~během měření. Cílem je zjistit, jak se nastavuje rampa,
+      vysílací výkon a~v~jakém formátu čip posílá vzorky.
+\item \textbf{Vytisknout čočku} z~PETG podle \skyrencmd{lens\_24ghz.scad}
+      a~změřit index lomu (viz níže). Podle něj model přepočítat.
+\item \textbf{Nahrát vlastní firmware}: trojúhelníková rampa přes 250\,MHz,
+      vysílací výkon snížený na limit EIRP, surová data, Hannovo okno, FFT,
+      parabolická interpolace, kombinace ramp, vyřazení slabých měření
+      a~tracking.
+\item \textbf{Změřit} šířku svazku s~čočkou a~přesnost na plechu, hladké
+      desce a~cihlové zdi, vždy kolmo a~při náklonu 15$^\circ$. Cihla ověří
+      model speckle. Teprve tato čísla nahradí výpočty v~dílu Návrh.
+\item \textbf{Navrhnout vlastní desku $\varnothing$\,35\,mm} se stejným čipem
+      a~jednou anténou pod čočkou.
 \end{enumerate}
 
-\section{Co si zapsat}
-\skyrenlead{Minimální sada čísel, bez které se nedá rozhodnout mezi
-variantami.}
+\begin{skyrenexample}
+Index lomu změří radar sám. Kovová deska stojí ve známé vzdálenosti; do
+svazku se vloží rovná destička z~materiálu čočky o~tloušťce 10\,mm.
+Zdánlivá vzdálenost se prodlouží o~$(n-1)\cdot t$. Prodloužení 6,2\,mm
+znamená $n = 1{,}62$.
+\end{skyrenexample}
 
-Z~prvního kola potřebujeme čtyři hodnoty: skutečný dosah na reálném cíli,
-skutečnou obnovovací frekvenci, celkovou latenci a~četnost výpadků. Teprve
-s~nimi má smysl rozhodovat mezi hotovým modulem a~vlastním front-endem ---
-a~teprve pak dává smysl řešit anténu.
+\section{Na co dát pozor}
+\skyrenlead{Čtyři věci, které rozhodnou, jestli prototyp s~čočkou funguje.}
 
-\begin{skyrentryit}
-Modul hlásí 100 měření za sekundu a~latenci 3\,ms. Jaká je celková nejistota
-polohy cíle při 240\,m/s?
-\skyrenreveal{Latence dá 240 $\cdot$ 0,003 = 0,72\,m systematického zpoždění,
-perioda vzorkování dalších 2,4\,m nejistoty mezi vzorky. Dohromady přes tři
-metry --- zadání „desítky centimetrů“ takový modul nesplní, i~kdyby měl
-přesnost měření 1\,cm.}
-\end{skyrentryit}
+\textbf{Rozestup antén modulu.} Vysílací a~přijímací anténa LD2450 jsou vedle
+sebe, takže se jejich svazky pod jednou čočkou rozejdou (díl Anténa
+a~čočka). Osu čočky
+je třeba umístit doprostřed mezi vysílač a~bližší přijímač. Rozestup přes
+20\,mm by byl problém.
+
+\textbf{Přesah.} Mezi modul a~čočku patří trubka, zevnitř buď s~hliníkovou
+páskou, nebo s~absorbérem --- která varianta je lepší, rozhodne měření.
+
+\textbf{Vyzářený výkon.} S~čočkou 16\,dBi smí vysílač dávat nejvýš 4\,dBm.
+Pokud firmware modulu vysílá víc, je nutné výkon snížit.
+
+\textbf{Shoda CE/RED.} Hotový modul má shodu pro svůj původní firmware
+a~anténu. Změnou profilu vysílání nebo přidáním čočky přechází odpovědnost
+za shodu na nás. Pro vývoj to nevadí, pro prodej ano.
 
 \begin{skyrentakeaway}
-První kolo neřeší výběr dílu, ale nahrazení katalogových čísel měřenými.
-Čtyři hodnoty --- dosah, frekvence, latence, výpadky --- rozhodnou o~variantě
-samy.
+Rozbor modulu LD2450 je nejlevnější cesta k~dokumentaci čipu i~k~prvnímu
+změřenému prototypu. Výsledkem prvního kola mají být čísla, která nahradí
+výpočty a~simulace v~tomto dokumentu --- hlavně chování na drsné nakloněné
+ploše --- a~podklady pro vlastní desku $\varnothing$\,35\,mm.
 \end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenappendix{Přehled vzorců}
+% ===========================================================================
+
+Vztahy z~teoretických dílů a~z~návrhu na jednom místě. $c$ je rychlost světla,
+$\lambda$ vlnová délka, $B$ šířka přeladění, $T$ délka chirpu, $R$ vzdálenost.
+
+\begin{skyrendeflist}{Veličina}{Vztah}
+rozdílová frekvence & $f_\mathrm{b} = 2RB/(cT)$ \\
+rozlišení & $\Delta R = c/2B$ \\
+Cramér--Raova mez & $\sigma_R \geq 0{,}39\,\Delta R/\sqrt{\mathrm{SNR}}$; prakticky $0{,}6\,\Delta R/\sqrt{\mathrm{SNR}}$ \\
+parabolická interpolace & $\delta = \tfrac{1}{2}(\alpha-\gamma)/(\alpha-2\beta+\gamma)$ \\
+dopplerovský posuv & $f_\mathrm{d} = 2v/\lambda$ \\
+Dopplerův posuv odhadu & $\Delta R_\mathrm{D} = vcT/(\lambda B)$ \\
+kombinace ramp & $R = (R_\uparrow+R_\downarrow)/2$, $v = \lambda B (R_\downarrow-R_\uparrow)/(2cT)$ \\
+šum na buňku & $N_\mathrm{dBm} = -174 + 10\log_{10}(1{,}5/T) + F_\mathrm{dB}$ \\
+bodový cíl & $P_\mathrm{r} = P_\mathrm{t}G^2\lambda^2\sigma/((4\pi)^3R^4)$ \\
+zrcadlová plocha & $P_\mathrm{r} = P_\mathrm{t}G^2\lambda^2|\Gamma|^2/((4\pi)^2(2R)^2)$ \\
+drsná plocha & $\sigma = \sigma^0 R^2\,\pi\theta_3^2/(8\ln 2)$, $P_\mathrm{r} \propto G/R^2$ \\
+činitel odrazu kolmo & $\Gamma = (1-\sqrt{\varepsilon_\mathrm{r}})/(1+\sqrt{\varepsilon_\mathrm{r}})$ \\
+Rayleighovo kritérium & $\rho = \exp[-(4\pi h\cos\theta_\mathrm{i}/\lambda)^2]$ \\
+první Fresnelova zóna & $r_1 = \sqrt{\lambda R/2}$ \\
+posun od stopy svazku & $b = R\theta_3^2(1+\tan^2\alpha)/(16\ln 2)$ \\
+kolísání (speckle) & $s_R \approx R\sigma_\theta\sqrt{\sigma_\theta^2+\tan^2\alpha}$, $\sigma_\theta = \theta_3/\sqrt{16\ln 2}$ \\
+průměr přes dráhu $L$ & $\sigma_\mathrm{prům} \approx \sqrt{s_R\lambda R/(4L)}$ \\
+šířka svazku & $\theta_3 \approx (58\ \text{až}\ 70)\,\lambda/D$ [$^\circ$] \\
+zisk apertury & $G \approx \eta(\pi D/\lambda)^2$ \\
+daleké pole & $R_\mathrm{ff} = 2D^2/\lambda$ \\
+profil čočky & $r^2 = 2(n-1)fz + (n^2-1)z^2$ \\
+odraz na ploše čočky & $|\Gamma|^2 = ((n-1)/(n+1))^2$ \\
+protiodrazná vrstva & $n_\mathrm{m} = \sqrt{n}$, tloušťka $\lambda_0/(4n_\mathrm{m})$ \\
+EIRP & $P_\mathrm{t} + G \leq 20$\,dBm (24,00--24,25\,GHz) \\
+\end{skyrendeflist}
+
+% ===========================================================================
+\skyrenappendix{Zvažované a zamítnuté varianty}
+% ===========================================================================
+
+Během studie jsme prošli řadu cest. Tabulka shrnuje, proč nevyhrály,
+aby se k~nim nebylo třeba vracet.
+
+\begin{skyrendeflist}{Varianta}{Proč nevyhrála}
+Parkside PLEM 20 A4 & fázový měřák s~uzavřeným ASICem, frekvence i~integrace
+  zadrátované v~čipu \\
+optický dToF (LightWare SF30/D) & zadání splní, cenou patří mezi měřicí
+  techniku \\
+levné dToF senzory (VL53Lxx, TMF8828, TF-Luna) & desítky až stovky Hz,
+  vícezónové čipy navíc integrují desítky ms \\
+hotové radarové moduly (NanoRadar NRA24, MR72) & neznámé chování firmwaru
+  při 240\,m/s, cena a~velikost \\
+vyřazené automobilové radary (ARS408, ESR) & 77\,GHz, filtry věrohodnosti
+  ve firmwaru, velikost \\
+24\,GHz s~polem 8$\times$8 & velikost 130$\times$70\,mm, do $\varnothing$\,35
+  se nevejde \\
+diskrétní front-end na 60/77\,GHz & jednotlivé obvody stojí desítky eur,
+  vyžadují speciální laminát a~bez měřicí techniky do 80\,GHz je nelze
+  ověřit \\
+60\,GHz s~anténou v~pouzdře (IWRL6432AOP) & technicky vhodný i~pro 30\,m
+  s~čočkou $\varnothing$\,35, cenu se nepodařilo zjistit \\
+Acconeer A121 & nejmenší varianta, ale zhruba 3$\times$ dražší; chování při
+  240\,m/s neověřené, protože vzdálenostní body snímá postupně \\
+radar se stojatým vlněním & stejné meze jako FMCW; výhodou je jediná anténa,
+  nevýhodou malý signál na velké stejnosměrné složce a~vícenásobné odrazy \\
+FSK (několik diskrétních tónů) & milimetrová přesnost pro jeden cíl, ale
+  měří jen za pohybu \\
+UWB čipy jako radar (DW3000) & velké antény a~široký svazek na 6,5--8\,GHz \\
+využít 1\,GHz modulace S3KM111L & mimo pásmo 24,00--24,25\,GHz je vysílání
+  v~EU nelegální \\
+\end{skyrendeflist}
 
 % ===========================================================================
 \skyrenappendix{Zdroje a vstupní data}
 % ===========================================================================
 
-\subsection{Vstupní data}
-Fotografická dokumentace teardownu dálkoměru Parkside PLEM 20 A4 je
-v~repozitáři ve~složce \skyrencmd{img/} (5 snímků, září 2026): typový štítek,
-obě strany měřicího modulu a~detaily osazení. Identifikace součástek
-vychází z~potisků na snímcích, nikoli z~měření.
-
 \subsection{Co nebylo ověřeno}
-Dokument stojí na katalogových údajích výrobců a~veřejně dostupné
-dokumentaci. \textbf{Nic z~uvedených dosahů, frekvencí ani cen nebylo
-ověřeno vlastním měřením ani poptávkou.} Vzorce v~díle~II jsou standardní
-radarové vztahy; dosazená čísla jsou přepočty, ne měření. Rozhodnutí
-o~variantě proto nelze udělat dřív než po prvním kole podle dílu~IV.
+Dokument stojí na katalogových údajích výrobců, veřejné dokumentaci,
+výpočtech a~simulacích. \textbf{Nic z~uvedených dosahů, přesností, šířek
+svazku ani cen nebylo ověřeno vlastním měřením ani poptávkou.} Konkrétně
+chybí:
+
+\begin{itemize}
+\item parametry čipu S3KM111L --- minimální délka chirpu, šířka pásma IF,
+      vysílací výkon, šumové číslo, kompresní bod přijímače, cena
+      a~dostupnost dokumentace,
+\item koeficienty zpětného rozptylu $\sigma^0$, drsnosti a~permitivity
+      povrchů na 24\,GHz (orientační hodnoty),
+\item index lomu a~ztrátový činitel tištěných plastů, poloha fázových středů
+      antén LD2450,
+\item model speckle je ověřený jen simulací, ne měřením na skutečné zdi,
+\item chování A121 při rychlosti 240\,m/s,
+\item regulatorní rámec: limit EIRP podle ERC/REC 70-03 a~harmonizované
+      normy (ETSI EN 305~550 a~související) v~aktuálním znění.
+\end{itemize}
+
+\subsection{Vstupní data a~simulace}
+Fotodokumentace teardownu Parkside PLEM 20 A4 je ve složce \skyrencmd{img/},
+model čočky v~\skyrencmd{hw/lens/}. Simulace interpolace vrcholu a~speckle
+na drsné zdi jsou ve složce \skyrencmd{sim/}; jsou napsané v~čistém Pythonu
+bez dalších knihoven.
 
 \subsection{Zdroje}
 \begin{skyrendeflist}{Zdroj}{Co z~něj pochází}
-Broadcom, AFBR-S50MV85G & parametry optického dToF: 10\,m, až 3000 snímků/s,
-  otevřené API \\
-LightWare, SF30/D & parametry jediného vyhovujícího optického dálkoměru:
-  200\,m, až 20\,000 měření/s \\
-ams-OSRAM, TMF8820/21/28 & vícezónový dToF s~histogramem, důvod vyřazení
-  (integrační čas) \\
-RFbeam, K-LD2 & 24GHz modul postavený na Infineon BGT24LTR11 \\
-InnoSenT, IPM-165 & doložení, že levné 24GHz moduly bývají CW, nikoli FMCW \\
-nanoradar-protocols (GitHub) & zdokumentovaný protokol modulů NRA24 / MR72,
-  poznámky k~ArduPilot a~PX4 \\
-tier4/ars408\_driver (GitHub) & otevřený ovladač pro Continental ARS408 \\
-Continental / AUMOVIO, ARS 408 & parametry dálkového automobilového radaru:
-  250\,m, $\pm$4$^\circ$ \\
+ICLegend, S3KM111L databrief (Sekorm) & integrovaný 24GHz čip:
+  trojúhelníková rampa, až 8\,kHz chirpů, QFN-32 4$\times$4\,mm \\
+Hi-Link, HLK-LD2450 a~LD2451 & parametry modulů: FMCW, 1T2R, rozměry,
+  šířka svazku a~přeladění LD2451 \\
+Hi-Link, HLK-LD2415H & CW dopplerovský modul, důvod vyřazení \\
+Infineon, BGT24MTR11 & 24GHz transceiver pro záložní variantu, ceny RS \\
+Acconeer, A121 & 60GHz pulzní koherentní radar, ceny LCSC a~DigiKey \\
+Infineon, BGT60TR13C & 60GHz čip s~anténou v~pouzdře, šířka pásma 5,5\,GHz \\
+TI, IWRL6432AOP & 60GHz FMCW s~anténou v~pouzdře, IF 5\,MHz, ADC
+  12,5\,MSPS \\
+TI, AWR2944 a~IWR6843 & šířka přeladění 4--4,5\,GHz v~pásmech 77 a~60\,GHz \\
+LightWare, SF30/D & optický dálkoměr 200\,m, až 20\,000 měření/s \\
+Broadcom, AFBR-S50MV85G & optický dToF: 10\,m, až 3000 snímků/s \\
+nanoradar-protocols, tier4/ars408\_driver (GitHub) & protokoly hotových
+  a~automobilových radarů \\
+ERC/REC 70-03 & limit EIRP 100\,mW pro 24,00--24,25\,GHz (neověřené
+  aktuální znění) \\
 \end{skyrendeflist}
 
 % ===========================================================================
@@ -518,23 +1165,49 @@ Continental / AUMOVIO, ARS 408 & parametry dálkového automobilového radaru:
 FMCW & radar se spojitou vlnou, jejíž kmitočet lineárně přelaďujeme;
   vzdálenost vypadne z~rozdílu kmitočtů \\
 chirp & jedna kmitočtová rampa vysílaného signálu \\
+trojúhelníková rampa & střídání stoupajícího a~klesajícího chirpu; ruší
+  Dopplerův posuv odhadu vzdálenosti \\
 rozdílová frekvence & rozdíl mezi vyslaným a~přijatým kmitočtem, přímo úměrný
   vzdálenosti cíle \\
-rozlišovací buňka & nejmenší vzdálenost, na které radar rozliší dva cíle;
-  rovna $c/2B$ \\
-šířka přeladění $B$ & kmitočtový rozsah jedné rampy; jediná veličina, která
-  určuje rozlišení \\
-dToF & přímé měření doby letu pulzu; princip většiny laserových dálkoměrů \\
-iToF / fázový měřák & měření vzdálenosti z~fázového posuvu spojitě modulovaného
-  svazku; princip rozebraného Parkside \\
-maximální jednoznačná rychlost & nejvyšší rychlost, kterou radar změří bez
-  přetočení fáze mezi chirpy \\
-range-Doppler coupling & systematický posuv naměřené vzdálenosti způsobený
-  pohybem cíle během rampy \\
-integrační čas & doba, po kterou senzor akumuluje signál do jednoho měření;
-  u~rychlých cílů zdroj rozmazání \\
-latence & doba od fyzikální události k~okamžiku, kdy je hodnota dostupná
-  v~řídicím systému \\
+I/Q vzorkování & vzorkování dvou kanálů posunutých o~90$^\circ$; dává
+  komplexní signál se znaménkem kmitočtu \\
+okno & váhová funkce vzorků před FFT, která potlačí postranní laloky spektra \\
+parabolická interpolace & dopočet polohy vrcholu mezi body FFT z~tří hodnot \\
+rozlišení & nejmenší vzdálenost, na které radar oddělí dva cíle; $c/2B$ \\
+přesnost & jak přesně radar určí polohu jednoho cíle; omezuje ji odstup
+  signálu od šumu \\
+Cramér--Raova mez & teoretická nejmenší chyba odhadu při daném odstupu
+  signálu od šumu \\
+Dopplerův posuv & změna kmitočtu odrazu pohybujícího se cíle; u~FMCW posune
+  odhad vzdálenosti \\
+šumové číslo & o~kolik přijímač zhorší odstup signálu od šumu proti
+  ideálnímu \\
+blikavý šum (1/$f$) & šum směšovače, který roste k~nízkým kmitočtům \\
+plošný cíl & cíl, který vyplní celý svazek; přijatý výkon klesá s~$R^2$ \\
+zrcadlový odraz & koherentní odraz od hladké plochy, vzniká v~první
+  Fresnelově zóně \\
+difúzní rozptyl & odraz od drsné plochy do všech směrů \\
+první Fresnelova zóna & skvrna kolem paty kolmice, ze které vzniká
+  zrcadlový odraz \\
+Rayleighovo kritérium & mez drsnosti, nad kterou se plocha přestává chovat
+  jako zrcadlo \\
+koeficient zpětného rozptylu & $\sigma^0$, radarový průřez drsné plochy na
+  jednotku plochy \\
+HPBW & šířka svazku v~bodech polovičního výkonu \\
+stopa svazku & část plochy ozářená svazkem \\
+posun od stopy svazku & systematický posun odhadu za kolmou vzdálenost
+  u~drsné plochy \\
+speckle & náhodné kolísání odhadu kvůli sčítání příspěvků drsné plochy
+  s~náhodnými fázemi \\
+hyperbolická čočka & čočka, jejíž plocha převede kulovou vlnu z~ohniska na
+  rovinnou \\
+protiodrazná vrstva & vrstva tloušťky čtvrt vlny, která potlačí odraz na
+  ploše čočky \\
+přesah & část vyzářeného výkonu, která čočku mine \\
+EIRP & ekvivalentní izotropně vyzářený výkon; součet vysílacího výkonu
+  a~zisku antény \\
+dToF & přímé měření doby letu pulzu \\
+fázový měřák & měření vzdálenosti z~fázového posuvu modulovaného svazku \\
 pásmo ISM 24\,GHz & volně použitelné pásmo 24,00--24,25\,GHz, šířka 250\,MHz \\
 \end{skyrendeflist}
 
