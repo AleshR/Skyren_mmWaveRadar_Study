@@ -6,3 +6,6 @@
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+
+# Generované 3D modely (zdrojem je .scad)
+*.stl
