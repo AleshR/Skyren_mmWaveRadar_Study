@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "re_generic") (type "KiCad") (uri "${KIPRJMOD}/../lib/re_generic.kicad_sym") (options "") (descr "Generické symboly pro zpětné zapojení modulů"))
+)

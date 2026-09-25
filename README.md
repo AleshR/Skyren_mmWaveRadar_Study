@@ -37,8 +37,11 @@ skončil jako slepá ulička (fázový měřák s uzavřeným ASICem) a zadání
 | `docs/mmwave_radar_study.tex` | studie, zdroj |
 | `docs/mmwave_radar_study.pdf` | vysázený dokument |
 | `docs/template/` | submodul — publikační systém Skyren (`skyren.cls`) |
+| `docs/datasheet/` | manuály výrobce HLK-LD2450 a HLK-LD2451 (v1.0) |
 | `docs/fig/` | výřezy fotek modulů pro sazbu (JPEG z `img/`) |
 | `hw/lens/lens_24ghz.scad` | parametrický model 24GHz hyperbolické čočky (OpenSCAD), i dělená a seříznutá varianta pro LD2450 |
+| `hw/ld2450/`, `hw/ld2451/` | KiCad 10 projekty: zpětné zapojení modulů z fotek a manuálů, podklad pro etapu 2 (mapování desky) |
+| `hw/lib/re_generic.kicad_sym` | generické symboly pro obvody neznámého typu, sdílené oběma projekty |
 | `sim/` | simulace v čistém Pythonu: interpolace vrcholu FFT, speckle na drsné zdi |
 | `img/` | fotky: teardown Parkside PLEM 20 A4 (`IMG_2014`–`2018`), HLK-LD2450 a LD2451 (`IMG_2152`–`2155`) |
 

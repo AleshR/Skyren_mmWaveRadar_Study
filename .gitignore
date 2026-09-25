@@ -9,3 +9,11 @@
 
 # Generované 3D modely (zdrojem je .scad)
 *.stl
+
+# KiCad: lokální stav, zálohy a cache
+*.kicad_prl
+*-backups/
+fp-info-cache
+_autosave-*
+\#auto_saved_files\#
+~*.lck

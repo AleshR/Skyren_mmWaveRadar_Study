@@ -1078,14 +1078,14 @@ je ověříme.}
 \cislo{1} QFN-32 4\,$\times$\,4, potisk Hi-Link & radarový čip, snad S3KM111L & zapojení vývodů \\
 \cislo{2} SOT-23 \skyrencmd{3400} & tranzistor, role neznámá & prozvonění \\
 \cislo{3} plošky DM DP TX RX PA9 GND & servisní rozhraní: USB, UART, vývod portu~A & připojení k~USB \\
-\cislo{4} plošky pod kolíkovou lištou & totéž v~rastru 2,54\,mm a~napájení 3,3 a~5\,V & --- \\
+\cislo{4} plošky pod kolíkovou lištou & totéž v~rastru 2,0\,mm a~napájení 3,3 a~5\,V & --- \\
 \cislo{5} tlumivka a~obvod \skyrencmd{KD} & spínaný měnič z~5 na 3,3\,V & napětí za provozu \\
 \cislo{6} krystal 25,000\,MHz & reference PLL radarového čipu & prozvonění na \cislo{1} \\
 \cislo{7} SOT-23-5 \skyrencmd{J5JK} & stabilizátor pro radarový čip & napětí za provozu \\
 \cislo{8} QFN-32 4\,$\times$\,4, jen logo & Bluetooth, možná i~aplikační MCU & SWD, linky k~\cislo{1} \\
 \cislo{9} krystal 24,000\,MHz & takt čipu \cislo{8} & --- \\
 \cislo{10} konektor IPEX & anténa Bluetooth 2,4\,GHz na kabelu & --- \\
-\cislo{11} konektor 1,25\,mm & výstup modulu: 5\,V, GND, TX, RX & --- \\
+\cislo{11} konektor 1,5\,mm & výstup modulu: 5\,V, GND, TX, RX & --- \\
 \cislo{12} dioda u~vstupu 5\,V & ochrana proti přepólování & --- \\
 \end{skyrentable}
 
@@ -1185,8 +1185,10 @@ zesilovač), stabilizátor SOT-223 \cislo{4}, součástka SOT-23 \cislo{5}
 a~krystal \cislo{6} přímo za radarovým čipem, obdoba krystalu 25\,MHz
 u~LD2450. Čtyři plošky \cislo{7} se čtvercovou ploškou jako vývodem~1
 vypadají jako programovací rozhraní. Konektor \cislo{9} nese napájení, UART
-a~dva spínací výstupy OT1 a~OT2. Bluetooth ani USB tu nevidíme; LD2451 tak
-může být pro čtení firmwaru snazší cíl než LD2450.
+a~dva spínací výstupy OT1 a~OT2. USB tu nevidíme a~anténu Bluetooth také ne,
+podle manuálu výrobce ale modul Bluetooth má (hlásí se jako
+\skyrencmd{LD2451\_XXXX}). Samostatný mikrokontrolér s~programovacími
+ploškami z~něj i~tak dělá slibný cíl pro čtení firmwaru.
 
 \section{Co z~toho plyne pro čočku}
 \skyrenlead{Jedna čočka nad celým LD2450 nefunguje. Čočka jen nad přijímačem
@@ -1755,7 +1757,7 @@ rozšířený na eliptický svazek.
 \toprule
 \skyrenth{Veličina} & \skyrenth{Předpověď} & \skyrenth{Naměřeno} \\
 \midrule
-\textbf{1} frekvence výstupu, původní firmware LD2450 & --- & \\
+\textbf{1} frekvence výstupu, původní firmware LD2450 & 10\,Hz (výrobce) & \\
 \textbf{2} rozestup středů Tx a~Rx1, LD2450 & 23\,mm (z~fotky) & \\
 \textbf{2--3} jádro a~paměť čipu s~firmwarem & --- & \\
 \textbf{3} šířka přeladění, původní firmware & $\leq$\,250\,MHz & \\
@@ -1902,6 +1904,8 @@ chybí:
 \subsection{Vstupní data a~simulace}
 Fotodokumentace teardownu Parkside PLEM 20 A4 a~modulů HLK-LD2450
 a~LD2451 je ve složce \skyrencmd{img/}, výřezy pro sazbu v~\skyrencmd{docs/fig/}.
+Manuály výrobce obou modulů jsou v~\skyrencmd{docs/datasheet/}, rozpracované
+zpětné zapojení v~projektech KiCad \skyrencmd{hw/ld2450/} a~\skyrencmd{hw/ld2451/}.
 Model čočky včetně dělené a~seříznuté varianty je v~\skyrencmd{hw/lens/}.
 Simulace interpolace vrcholu a~speckle na drsné zdi jsou ve složce
 \skyrencmd{sim/}; jsou napsané v~čistém Pythonu bez dalších knihoven.
@@ -1910,8 +1914,9 @@ Simulace interpolace vrcholu a~speckle na drsné zdi jsou ve složce
 \begin{skyrendeflist}{Zdroj}{Co z~něj pochází}
 ICLegend, S3KM111L databrief (Sekorm) & integrovaný 24GHz čip:
   trojúhelníková rampa, až 8\,kHz chirpů, QFN-32 4$\times$4\,mm \\
-Hi-Link, HLK-LD2450 a~LD2451 & parametry modulů: FMCW, 1T2R, rozměry,
-  šířka svazku a~přeladění LD2451 \\
+Hi-Link, manuály HLK-LD2450 a~LD2451 v1.0 & parametry modulů: FMCW, 1T2R,
+  rozměry, šířka svazku a~přeladění, rozteče konektorů, zapojení vývodů,
+  Bluetooth LD2451 \\
 Hi-Link, HLK-LD2415H & CW dopplerovský modul, důvod vyřazení \\
 Hi-Link, sériový protokol LD2450 & rychlost 256\,000\,Bd, formát výstupního
   rámce (ověřit na záznamu) \\
