@@ -6,6 +6,17 @@
 \usepackage{amsmath}
 \usepackage{amssymb}   % \varnothing pro průměr
 
+% Značky ve fotkách modulů: štítek antény a číslo součástky. \cislo{n} sází
+% stejné číslo do textu a tabulek.
+\tikzset{
+  foto/.style={font=\fontsize{7.5}{9}\selectfont, fill=skyrenGround,
+    draw=skyrenInk, line width=0.5pt, inner sep=1.5pt},
+  cislo/.style={circle, fill=skyrenInk, text=skyrenGround, inner sep=0pt,
+    minimum size=4mm, font=\fontsize{7}{7}\selectfont\bfseries},
+}
+\newcommand{\cislo}[1]{\tikz[baseline=(c.base)]\node[cislo, minimum size=3.4mm,
+  font=\fontsize{6.5}{6.5}\selectfont\bfseries] (c) {#1};}
+
 \skyrendoctitle{mmWave Radar Study}
 \skyrenstudytype{TECHNICKÁ STUDIE}
 \skyrentitle{Levný radarový dálkoměr pro rychlé cíle}
@@ -20,7 +31,7 @@ na začátku a~na konci dílů a~pokračovat dílem Návrh.}
 
 \skyrenmeta{%
   \metaitem{Projekt}{mmWave Radar}\hfill
-  \metaitem{Revize}{R2}\hfill
+  \metaitem{Revize}{R3}\hfill
   \metaitem{Datum}{Září 2026}\hfill
   \metaitem[0.2]{Klasifikace}{Interní}%
 }
@@ -32,22 +43,26 @@ na začátku a~na konci dílů a~pokračovat dílem Návrh.}
 \begin{skyrensummary}
 Vzdálenost k~plošnému cíli do 5\,m při vzájemné rychlosti až 240\,m/s
 změří \textbf{24GHz FMCW radar s~trojúhelníkovou rampou}, jednou anténou
-o~průměru 35\,mm a~tištěnou čočkou; materiál vychází na \textbf{zhruba
-4--7\,€}. Na hladkých površích (plech, hladký beton, hoblované dřevo) je
-chyba pod 1\,cm a~radar měří kolmou vzdálenost k~rovině. Na drsných površích
-(hrubý beton, cihla) rozhoduje \textbf{speckle}: po průměrování přes 1,2\,m
-přiblížení vychází chyba kolem 3\,cm u~kolmé zdi, ale 5--6\,cm při náklonu
-15$^\circ$. Tam zadání 5\,cm splní až užší svazek. Otevřená je dokumentace
-a~cena čipu; chceme je získat rozebráním modulu HLK-LD2450.
+o~průměru 35\,mm a~tištěnou čočkou za \textbf{zhruba 4--7\,€} materiálu.
+Hladké povrchy změří pod 1\,cm; na drsných rozhoduje \textbf{speckle} --- po
+průměrování přes 1,2\,m přiblížení kolem 3\,cm u~kolmé zdi a~5--6\,cm při
+náklonu 15$^\circ$, kde zadání 5\,cm splní až užší svazek. Fotky modulů
+HLK-LD2450 a~LD2451 ukázaly, že radarový čip nese potisk Hi-Link a~že
+vysílač a~přijímač LD2450 leží 23\,mm od sebe; vývoj proto poběží
+s~\textbf{čočkou jen nad přijímačem}, která dá stejný rozpočet výkonu jako
+cílový návrh. Praktický díl to převádí na osm etap s~kritérii; rozhodují
+dvě --- ovládnout čip vlastním firmwarem a~změřit speckle na skutečné zdi.
 \end{skyrensummary}
 
 \begin{skyrennote}[Jak číst tento dokument]
 \textbf{Boxy se štítkem} označují typ sdělení: \textsc{poznámka} kontext
-navíc, \textsc{úskalí} častou chybu, \textsc{příklad} konkrétní výpočet.
-\textsc{Na jeden pohled} otevírá díl, \textsc{co z~toho plyne} ho uzavírá.
-\skyrencmd{Mono písmo} značí hodnotu nebo označení dílu. Revize R2 nahrazuje
-R1: zadání se mezitím zpřesnilo a~většina závěrů R1 už neplatí. Čísla v~R2
-pocházejí z~výpočtů a~simulací, ne z~měření.
+navíc, \textsc{tip} zkratku, \textsc{úskalí} častou chybu, \textsc{pozor}
+nevratný krok, \textsc{příklad} konkrétní výpočet. \textsc{Na jeden pohled}
+otevírá díl, \textsc{co z~toho plyne} ho uzavírá. \skyrencmd{Mono písmo}
+značí hodnotu nebo označení dílu, číslo v~kroužku \cislo{1} součástku na
+fotce modulu. Revize R3 doplňuje R2 o~rozbor modulů HLK z~fotografií (díl
+Rozbor) a~o~praktický plán (díl Praxe), který nahradil dřívější Postup.
+Čísla v~R3 pocházejí z~výpočtů, simulací a~fotografií, ne z~měření radarem.
 \end{skyrennote}
 
 \tableofcontents
@@ -78,7 +93,8 @@ Přístroj neměří dobu letu pulzu, ale \skyrenterm{fázový posuv} spojitě
 modulovaného svazku. Celý měřicí řetězec je uvnitř ASICu se zákaznickým
 označením bez veřejného datového listu. Odposlech plochého spoje by dal
 kontrolu nad rozhraním, ne nad měřením: frekvence i~integrační čas zůstávají
-zadrátované v~čipu.
+zadrátované v~čipu. Radarové moduly HLK, na kterých stojí další vývoj,
+rozebírá díl Rozbor.
 
 \section{Zadání}
 \skyrenlead{Pět požadavků. Poslední dva, cena a~velikost, rozhodly o~návrhu
@@ -739,7 +755,9 @@ Posune-li se fázový střed antény o~$d$ napříč osou, svazek se vychýlí z
 o~úhel $d/f$ na opačnou stranu. U~modulu s~oddělenou vysílací a~přijímací
 anténou se tak jejich svazky pod jednou čočkou rozejdou. Při rozestupu
 10\,mm a~$f = 28$\,mm to je $\pm$\,10$^\circ$: společný svazek se zúží
-a~ztratí několik dB. Na vlastní desce s~jednou anténou tento problém odpadá.
+a~ztratí několik dB. LD2450 má rozestup 23\,mm (díl Rozbor), tedy kolem
+$\pm$\,20$^\circ$ a~ztrátu kolem 20\,dB. Na vlastní desce s~jednou anténou
+tento problém odpadá.
 
 Okraj čočky vidí anténa pod úhlem $\arctan(D/2f) = 32^\circ$. Co vyzáří pod
 větším úhlem, čočku mine (\skyrenterm{přesah}) a~svítí do stran, kde vrací
@@ -807,7 +825,7 @@ a~mikrokontrolér z~něj počítá vzdálenost.}{fig:blok}
 
 Obr.~\ref{fig:blok} ukazuje cílovou vlastní desku. Při vývoji na hacknutém
 modulu LD2450 místo vazebníku a~jedné antény slouží jeho oddělené antény
-a~čočka sedí nad oběma.
+a~čočka sedí jen nad přijímačem (díl Rozbor, konfigurace B).
 
 \section{Profil vysílání}
 \skyrenlead{Cílový profil pro dosah do 5\,m.}
@@ -949,98 +967,838 @@ tedy 60\,GHz.
 \end{skyrentakeaway}
 
 % ===========================================================================
-\skyrenchapter[\skyrenmodehowto]{Postup}{Čip z~levného modulu}
+\skyrenchapter[\skyrenmodeexplanation]{Rozbor}{Co je uvnitř modulů HLK}
 % ===========================================================================
 
 \begin{skyrenglance}
-Dokumentace k~čipu S3KM111L není veřejná. Rychlejší cesta než čekat na NDA
-je rozebrat hotový modul HLK-LD2450, vytáhnout z~jeho mikrokontroléru
-inicializaci čipu a~nahradit firmware vlastním. Modul slouží jako vývojová
-platforma; finální tvar $\varnothing$\,35\,mm bude vlastní deska.
+Fotky obou stran HLK-LD2450 a~HLK-LD2451 potvrdily uspořádání 1T2R
+a~pouzdro QFN-32, ne ale typ čipu: radarový čip LD2450 nese potisk Hi-Link.
+Vysílač a~přijímač LD2450 leží 23\,mm od sebe, takže jedna čočka nad oběma
+by ztratila kolem 20\,dB. Čočka jen nad přijímačem dá naopak stejný rozpočet
+výkonu jako cílový návrh a~nemění vyzářený výkon.
 \end{skyrenglance}
 
-\section{Co koupit}
-\skyrenlead{Dva moduly z~lokální nabídky a~vývojové pomůcky.}
+\section{Co a~jak jsme fotili}
+\skyrenlead{Rozměry pocházejí z~fotografií, ne z~měřidla. Nejistota je kolem
+5\,\%, u~rozestupu antén tedy $\pm$\,1\,mm.}
 
-\begin{skyrentable}{3}{Nákupní seznam. Moduly jsou skladem v~ČR.}
-\skyrenth{Položka} & \skyrenth{Počet} & \skyrenth{Účel} \\
+Oba moduly jsme nafotili telefonem shora, každý z~obou stran (snímky
+\skyrencmd{IMG\_2152} až \skyrencmd{IMG\_2155} ve složce \skyrencmd{img/},
+výřezy pro sazbu v~\skyrencmd{docs/fig/}). Měřítko dává obrys desky podle
+rozměrů výrobce, 44\,$\times$\,15\,mm u~LD2450 a~70\,$\times$\,35\,mm
+u~LD2451; u~LD2450 vychází kolem 40 obrazových bodů na milimetr. Nejistotu
+přidává perspektiva a~zaoblené rohy desky.
+
+Potisky čipů jsou vypálené laserem a~v~rovném světle skoro splývají
+s~pouzdrem. Čitelný byl jen potisk radarového čipu LD2450, a~to až po otočení
+výřezu a~zvýšení kontrastu. Ostatní přečte až makrosnímek s~bočním světlem
+(díl Praxe, etapa~2).
+
+\section{LD2450: strana antén}
+\skyrenlead{Jeden vysílač a~dva přijímače po dvou ploškách, mezi nimi radarový
+čip s~potiskem Hi-Link.}
+
+\begin{skyrenfigure}{HLK-LD2450 ze strany antén (vlevo) a~potisk radarového
+čipu \cislo{1} po otočení a~zvýšení kontrastu (vpravo). Vysílač Tx tvoří dvě
+plošky; přijímače Rx1 a~Rx2 po dvou ploškách leží 6,4\,mm nad sebou. Středy
+Tx a~Rx1 dělí asi 23\,mm.}{fig:ld2450a}
+\begin{tikzpicture}
+  \node[anchor=south west, inner sep=0pt] (ph) at (0,0)
+    {\includegraphics[width=0.735\linewidth]{fig/ld2450_antena.jpg}};
+  \begin{scope}[x={(ph.south east)}, y={(ph.north west)}]
+    \node[foto] at (0.283,0.610) {Tx};
+    \node[foto] at (0.794,0.663) {Rx1};
+    \node[foto] at (0.794,0.301) {Rx2};
+    \node[cislo] at (0.491,0.250) {1};
+    \node[cislo] at (0.588,0.653) {2};
+    \draw[skyrenRed, line width=0.9pt, {Bar[width=2.2mm]}-{Bar[width=2.2mm]}]
+      (0.283,0.938) -- (0.794,0.938)
+      node[midway, foto, draw=skyrenRed] {$\approx$\,23\,mm};
+  \end{scope}
+  \node[anchor=west, inner sep=0pt] at ([xshift=2.5mm]ph.east)
+    {\includegraphics[width=0.225\linewidth]{fig/ld2450_potisk.jpg}};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Na obr.~\ref{fig:ld2450a} je vidět uspořádání 1T2R, které uvádí výrobce.
+Antény jsou \skyrenterm{plošky} (patch): obdélníky mědi nad zemní vrstvou
+desky, které rezonují na délce kolem půl vlnové délky v~laminátu. Vlevo je
+\textbf{vysílač}, dvě plošky 4,1\,$\times$\,3,1\,mm s~roztečí 8,1\,mm na
+jednom vedení. Vpravo jsou dva \textbf{přijímače}, každý ze dvou plošek
+3,8\,$\times$\,3,1\,mm s~roztečí 7,6\,mm. Řady přijímačů leží 6,4\,mm nad
+sebou, zhruba půl vlnové délky ve vzduchu: z~rozdílu fází mezi nimi modul
+počítá úhel cíle napříč deskou. Plošky jsou napájené od kratší hrany, takže
+polarizace míří podél kratší strany desky.
+
+Dvojice plošek dává svazek kolem 40$^\circ$ podél delší strany desky
+a~kolem 90$^\circ$ napříč, se ziskem kolem 9\,dBi. Jsou to odhady
+z~geometrie, ne měření. Anténní pole je bez nepájivé masky. Krémová barva
+laminátu napovídá vysokofrekvenční laminát třídy RO4350B
+($\varepsilon_\mathrm{r} \approx 3{,}6$) a~délka plošky 3,1\,mm tomu
+odpovídá. Na FR4 by ale vyšla jen o~0,2\,mm kratší, což z~fotky nerozlišíme.
+
+Radarový čip \cislo{1} je QFN-32 4\,$\times$\,4\,mm pootočený o~45$^\circ$,
+aby vedení k~anténám byla co nejkratší. Pouzdro odpovídá databriefu
+S3KM111L. Potisk ale patří Hi-Linku: logo, označení začínající
+\skyrencmd{HLK24} a~dva řádky kódu šarže, bez značky ICLegend. Že jde
+o~S3KM111L, zůstává hypotéza; shoduje se pouzdro i~1T2R, rozhodne až zapojení
+vývodů. Vedle čipu je součástka SOT-23 \cislo{2} s~potiskem
+\skyrencmd{3400}, nejspíš tranzistor; její roli neznáme.
+
+\section{LD2450: strana součástek}
+\skyrenlead{Druhý čip s~Bluetooth, dva krystaly, napájení a~servisní plošky
+s~linkami USB.}
+
+\begin{skyrenfigure}{HLK-LD2450 ze strany součástek. Čísla odkazují na
+tabulku pod obrázkem; radarový čip leží na druhé straně desky za krystalem
+\cislo{6}.}{fig:ld2450b}
+\begin{tikzpicture}
+  \node[anchor=south west, inner sep=0pt] (ph) at (0,0)
+    {\includegraphics[width=\linewidth]{fig/ld2450_soucastky.jpg}};
+  \begin{scope}[x={(ph.south east)}, y={(ph.north west)}]
+    \node[cislo] at (0.167,0.735) {3};
+    \node[cislo] at (0.239,0.598) {4};
+    \node[cislo] at (0.400,0.630) {5};
+    \node[cislo] at (0.478,0.421) {6};
+    \node[cislo] at (0.561,0.164) {7};
+    \node[cislo] at (0.658,0.293) {8};
+    \node[cislo] at (0.700,0.600) {9};
+    \node[cislo] at (0.778,0.839) {10};
+    \node[cislo] at (0.944,0.389) {11};
+    \node[cislo] at (0.244,0.132) {12};
+  \end{scope}
+\end{tikzpicture}
+\end{skyrenfigure}
+
+\begin{skyrentable}{3}{Součástky LD2450 podle obr.~\ref{fig:ld2450a}
+a~\ref{fig:ld2450b}. Role jsou hypotézy z~fotek, poslední sloupec říká, čím
+je ověříme.}
+\skyrenth{Součástka} & \skyrenth{Pravděpodobná role} & \skyrenth{Jak ověřit} \\
 \midrule
-HLK-LD2450 (FMCW, 1T2R, 44$\times$15\,mm) & 2--3 & hlavní cíl rozboru \\
-HLK-LD2451 (FMCW, $\pm$\,20$^\circ$, 70$\times$35\,mm) & 1 & reference laděná na rychlé cíle \\
-Převodník USB--UART & 1 & čtení výstupu modulu \\
-Ladicí sonda SWD (ST-Link, Pico) & 1 & čtení a~zápis firmwaru \\
-Logický analyzátor & 1 & odposlech rozhraní čip--MCU \\
+\cislo{1} QFN-32 4\,$\times$\,4, potisk Hi-Link & radarový čip, snad S3KM111L & zapojení vývodů \\
+\cislo{2} SOT-23 \skyrencmd{3400} & tranzistor, role neznámá & prozvonění \\
+\cislo{3} plošky DM DP TX RX PA9 GND & servisní rozhraní: USB, UART, vývod portu~A & připojení k~USB \\
+\cislo{4} plošky pod kolíkovou lištou & totéž v~rastru 2,54\,mm a~napájení 3,3 a~5\,V & --- \\
+\cislo{5} tlumivka a~obvod \skyrencmd{KD} & spínaný měnič z~5 na 3,3\,V & napětí za provozu \\
+\cislo{6} krystal 25,000\,MHz & reference PLL radarového čipu & prozvonění na \cislo{1} \\
+\cislo{7} SOT-23-5 \skyrencmd{J5JK} & stabilizátor pro radarový čip & napětí za provozu \\
+\cislo{8} QFN-32 4\,$\times$\,4, jen logo & Bluetooth, možná i~aplikační MCU & SWD, linky k~\cislo{1} \\
+\cislo{9} krystal 24,000\,MHz & takt čipu \cislo{8} & --- \\
+\cislo{10} konektor IPEX & anténa Bluetooth 2,4\,GHz na kabelu & --- \\
+\cislo{11} konektor 1,25\,mm & výstup modulu: 5\,V, GND, TX, RX & --- \\
+\cislo{12} dioda u~vstupu 5\,V & ochrana proti přepólování & --- \\
 \end{skyrentable}
 
-Moduly \skyrencmd{HLK-LD2415H}, \skyrencmd{HW-MS03} a~\skyrencmd{RCWL-0516}
-nepoužíváme. Jsou to CW dopplerovské senzory, měří jen pohyb nebo rychlost,
-vzdálenost z~nich žádné zpracování nedostane.
+Na desce jsou dva čipy, které mohou nést firmware: radarový čip \cislo{1}
+a~čip \cislo{8} s~vlastním krystalem a~ohebnou anténou Bluetooth na kabelu.
+Krystal \cislo{6} leží přímo za radarovým čipem a~bude to jeho reference.
+Z~fotek plynou dvě možná uspořádání:
 
-\section{Kroky}
-\skyrenlead{Pořadí je závazné --- každý krok odstraňuje nejistotu, na které
-stojí další.}
+\begin{itemize}
+\item \cislo{8} je \textbf{aplikační mikrokontrolér} s~Bluetooth. Čte
+  z~radarového čipu vzorky přes rychlou sběrnici, počítá cíle a~posílá je
+  konektorem \cislo{11}. Inicializace čipu je pak ve firmwaru \cislo{8}
+  a~sběrnici mezi čipy jde odposlechnout.
+\item Radarový čip je \textbf{SoC s~vlastním procesorem}, který počítá cíle
+  sám, a~\cislo{8} je jen most do Bluetooth. Mezi čipy pak vede jen UART
+  a~inicializace je uvnitř \cislo{1}.
+\end{itemize}
 
-\begin{enumerate}
-\item \textbf{Nafotit obě strany LD2450} a~určit radarový čip, mikrokontrolér
-      a~piny SWD. Z~fotek se zároveň určí poloha vysílací a~přijímací antény
-      pro umístění čočky.
-\item \textbf{Vytáhnout firmware přes SWD.} Obsahuje inicializační sekvenci
-      čipu, tedy registry, ke kterým chybí dokumentace. Pokud je paměť
-      zamčená, zbývá odposlech rozhraní.
-\item \textbf{Odposlechnout rozhraní mezi čipem a~MCU} logickým analyzátorem
-      při startu a~během měření. Cílem je zjistit, jak se nastavuje rampa,
-      vysílací výkon a~v~jakém formátu čip posílá vzorky.
-\item \textbf{Vytisknout čočku} z~PETG podle \skyrencmd{lens\_24ghz.scad}
-      a~změřit index lomu (viz níže). Podle něj model přepočítat.
-\item \textbf{Nahrát vlastní firmware}: trojúhelníková rampa přes 250\,MHz,
-      vysílací výkon snížený na limit EIRP, surová data, Hannovo okno, FFT,
-      parabolická interpolace, kombinace ramp, vyřazení slabých měření
-      a~tracking.
-\item \textbf{Změřit} šířku svazku s~čočkou a~přesnost na plechu, hladké
-      desce a~cihlové zdi, vždy kolmo a~při náklonu 15$^\circ$. Cihla ověří
-      model speckle. Teprve tato čísla nahradí výpočty v~dílu Návrh.
-\item \textbf{Navrhnout vlastní desku $\varnothing$\,35\,mm} se stejným čipem
-      a~jednou anténou pod čočkou.
-\end{enumerate}
+Každé uspořádání vede v~etapě~3 dílu Praxe k~jinému postupu. Rozhodne mezi
+nimi prozvonění: kolik linek spojuje \cislo{1} s~\cislo{8} a~kam vedou TX
+a~RX konektoru \cislo{11}.
 
-\begin{skyrenexample}
-Index lomu změří radar sám. Kovová deska stojí ve známé vzdálenosti; do
-svazku se vloží rovná destička z~materiálu čočky o~tloušťce 10\,mm.
-Zdánlivá vzdálenost se prodlouží o~$(n-1)\cdot t$. Prodloužení 6,2\,mm
-znamená $n = 1{,}62$.
-\end{skyrenexample}
+Plošky \cislo{3} nesou kromě UART i~linky DM a~DP, tedy datové linky USB.
+Aspoň jeden čip má tedy USB, pravděpodobně kvůli nahrávání firmwaru. Označení
+PA9 je typické pro mikrokontroléry s~porty pojmenovanými po vzoru STM32.
+Obojí je levná stopa: po připojení k~počítači se ukáže, jestli se modul
+přihlásí jako zařízení USB, a~identifikátor výrobce prozradí, čí čip ho
+obsluhuje.
 
-\section{Na co dát pozor}
-\skyrenlead{Čtyři věci, které rozhodnou, jestli prototyp s~čočkou funguje.}
+\section{LD2451: dvě řady po osmi ploškách}
+\skyrenlead{Sériově napájené řady se svazkem kolem 15$^\circ$ v~jedné rovině
+a~na zadní straně samostatný mikrokontrolér s~programovacími ploškami.}
 
-\textbf{Rozestup antén modulu.} Vysílací a~přijímací anténa LD2450 jsou vedle
-sebe, takže se jejich svazky pod jednou čočkou rozejdou (díl Anténa
-a~čočka). Osu čočky
-je třeba umístit doprostřed mezi vysílač a~bližší přijímač. Rozestup přes
-20\,mm by byl problém.
+\begin{skyrenfigure}{HLK-LD2451 ze strany antén. Nahoře dva přijímače, každý
+jedna řada osmi plošek, dole vysílač ze dvou řad na jednom vedení. Středy
+vysílače a~přijímačů dělí asi 18\,mm; \cislo{1} je radarový
+čip.}{fig:ld2451a}
+\begin{tikzpicture}
+  \node[anchor=south west, inner sep=0pt] (ph) at (0,0)
+    {\includegraphics[width=\linewidth]{fig/ld2451_antena.jpg}};
+  \begin{scope}[x={(ph.south east)}, y={(ph.north west)}]
+    \node[foto] at (0.578,0.841) {Rx1};
+    \node[foto] at (0.578,0.676) {Rx2};
+    \node[foto] at (0.578,0.262) {Tx};
+    \node[cislo] at (0.061,0.682) {1};
+    \draw[skyrenRed, line width=0.9pt, {Bar[width=2.2mm]}-{Bar[width=2.2mm]}]
+      (0.300,0.758) -- (0.300,0.262)
+      node[midway, foto, draw=skyrenRed] {$\approx$\,18\,mm};
+  \end{scope}
+\end{tikzpicture}
+\end{skyrenfigure}
 
-\textbf{Přesah.} Mezi modul a~čočku patří trubka, zevnitř buď s~hliníkovou
-páskou, nebo s~absorbérem --- která varianta je lepší, rozhodne měření.
+LD2451 (obr.~\ref{fig:ld2451a}) má antény v~\skyrenterm{sériově napájených
+řadách}: osm plošek za sebou na jednom vedení. Plošky se k~okrajům řady
+zmenšují, což potlačí postranní laloky. Horní dvě řady, 6,0\,mm nad sebou,
+vedou každá do vlastního vývodu čipu. Dolní dvě, 7,8\,mm od sebe, napájí
+jedno vedení s~rozbočením. Uspořádání 1T2R proto nejspíš znamená dva
+přijímače nahoře a~vysílač dole; dlouhé vedení k~vysílači je obvyklá volba,
+protože ztráta v~něm vadí méně než na příjmu.
 
-\textbf{Vyzářený výkon.} S~čočkou 16\,dBi smí vysílač dávat nejvýš 4\,dBm.
-Pokud firmware modulu vysílá víc, je nutné výkon snížit.
+Rozteč plošek je 6,6\,mm a~řada je dlouhá asi 53\,mm, přes čtyři vlnové
+délky. Podél řady tak vychází svazek kolem 15$^\circ$, napříč u~vysílače
+kolem 40$^\circ$ a~u~přijímačů přes 80$^\circ$. Zisk vysílací antény
+odhadujeme na 15--16\,dBi, tedy zhruba jako u~navržené čočky; i~to jsou
+odhady z~geometrie. Radarový čip \cislo{1} je QFN-32 v~rohu desky, jeho
+potisk z~fotky nepřečteme.
 
-\textbf{Shoda CE/RED.} Hotový modul má shodu pro svůj původní firmware
-a~anténu. Změnou profilu vysílání nebo přidáním čočky přechází odpovědnost
-za shodu na nás. Pro vývoj to nevadí, pro prodej ano.
+Odtud plyne užitečná reference. Pokud LD2451 splňuje limit EIRP 20\,dBm
+s~anténou kolem 16\,dBi, vysílá jeho čip nejvýš kolem 4\,dBm --- tedy
+přesně tolik, kolik smí vlastní deska s~čočkou. Nastavení výkonu v~jeho
+firmwaru proto ukáže, jak se tahle hodnota v~čipu nastavuje.
+
+\begin{skyrenfigure}{HLK-LD2451 ze strany součástek: \cislo{2} QFN-32,
+\cislo{3} SOIC-8, \cislo{4} stabilizátor SOT-223, \cislo{5} SOT-23,
+\cislo{6} krystal za radarovým čipem, \cislo{7} čtyři plošky, \cislo{8} rám
+stínění bez krytu, \cislo{9} konektor.}{fig:ld2451b}
+\begin{tikzpicture}
+  \node[anchor=south west, inner sep=0pt] (ph) at (0,0)
+    {\includegraphics[width=\linewidth]{fig/ld2451_soucastky.jpg}};
+  \begin{scope}[x={(ph.south east)}, y={(ph.north west)}]
+    \node[cislo] at (0.111,0.884) {2};
+    \node[cislo] at (0.128,0.532) {3};
+    \node[cislo] at (0.269,0.862) {4};
+    \node[cislo] at (0.289,0.515) {5};
+    \node[cislo] at (0.222,0.240) {6};
+    \node[cislo] at (0.250,0.163) {7};
+    \node[cislo] at (0.339,0.934) {8};
+    \node[cislo] at (0.833,0.504) {9};
+  \end{scope}
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Zadní strana (obr.~\ref{fig:ld2451b}) nese rám pro stínicí kryt \cislo{8},
+kryt ale chybí. Uvnitř je QFN-32 \cislo{2}, který vypadá jako běžný
+mikrokontrolér, SOIC-8 \cislo{3} s~nečitelným potiskem (paměť, nebo
+zesilovač), stabilizátor SOT-223 \cislo{4}, součástka SOT-23 \cislo{5}
+a~krystal \cislo{6} přímo za radarovým čipem, obdoba krystalu 25\,MHz
+u~LD2450. Čtyři plošky \cislo{7} se čtvercovou ploškou jako vývodem~1
+vypadají jako programovací rozhraní. Konektor \cislo{9} nese napájení, UART
+a~dva spínací výstupy OT1 a~OT2. Bluetooth ani USB tu nevidíme; LD2451 tak
+může být pro čtení firmwaru snazší cíl než LD2450.
+
+\section{Co z~toho plyne pro čočku}
+\skyrenlead{Jedna čočka nad celým LD2450 nefunguje. Čočka jen nad přijímačem
+dá rozpočet výkonu cílového návrhu a~nemění vyzářený výkon.}
+
+Kdyby osa čočky ležela uprostřed mezi vysílačem a~přijímačem, byl by každý
+z~nich 11,5\,mm mimo ohnisko. Podle dílu Anténa a~čočka se tím svazek
+vychýlí o~úhel kolem $d/f$, tedy o~19--22$^\circ$, každý na opačnou stranu.
+Dvoucestný diagram vznikne součinem obou svazků. U~gaussovského svazku
+zůstane v~ose, ztratí ale $2 \cdot 12\,(\theta/\theta_3)^2$\,dB, tedy
+18--25\,dB, a~aberace mimo osu ztrátu ještě zvětší. Drsnému povrchu na 5\,m
+zbývá v~rozpočtu výkonu 20\,dB odstupu od šumu; po takové ztrátě nezbude nic.
+
+Pro vývoj proto počítáme se třemi konfiguracemi (obr.~\ref{fig:konfig}):
+
+\begin{itemize}
+\item \textbf{A: bez čočky.} Pro firmware, surová data a~kalibraci. Svazek
+  je široký, na drsné zdi by kolísání dosáhlo desítek centimetrů.
+\item \textbf{B: čočka jen nad přijímačem.} Plná čočka $\varnothing$\,35\,mm
+  s~osou nad Rx1, seříznutá 12\,mm od osy, aby nezakrývala vysílač. Vysílač
+  svítí bez čočky, takže vyzářený výkon zůstává jako u~hotového modulu.
+  Dvoucestný svazek určuje hlavně úzký svazek čočky.
+\item \textbf{C: dělená čočka.} Dvě poloviny apertury, každá s~osou nad svou
+  anténou. V~úzké rovině má svazek 23$^\circ$ jako návrh, v~široké
+  46$^\circ$. Vysílač získá kolem 4\,dB, o~které je nutné snížit výkon,
+  pokud původní firmware vysílá blízko limitu.
+\end{itemize}
+
+\begin{skyrenfigure}{Čočka nad LD2450 při pohledu shora, deska
+v~měřítku. B: plná čočka $\varnothing$\,35\,mm s~osou nad Rx1, seříznutá
+12\,mm od osy, aby nezakrývala vysílač. C: dělená čočka; každá polovina má
+osu nad svou anténou (křížky), šev leží uprostřed mezi nimi.}{fig:konfig}
+\begin{tikzpicture}[x=0.95mm, y=0.95mm, line width=0.6pt,
+  every node/.style={font=\fontsize{7.5}{9}\selectfont}]
+  \newcommand{\deska}{%
+    \draw[skyrenInk, fill=skyrenGround] (0,0) rectangle (44,15);
+    \foreach \xa/\ya/\xb/\yb in {6.3/8.6/10.4/11.7, 14.4/8.6/18.4/11.7,
+        29.5/9.5/33.3/12.7, 37.1/9.5/41.0/12.7,
+        29.4/3.2/33.3/6.3, 37.1/3.2/41.0/6.3}
+      \draw[skyrenInk, fill=skyrenNeutral400, line width=0.4pt]
+        (\xa,\ya) rectangle (\xb,\yb);
+    \draw[skyrenInk, fill=skyrenNeutral600, line width=0.4pt,
+      rotate around={45:(21.6,3.8)}] (19.6,1.8) rectangle (23.6,5.8);
+    \node[anchor=north] at (12.35,8.3) {Tx};
+    \node[anchor=west] at (41.2,11.1) {Rx1};
+    \node[anchor=west] at (41.2,4.75) {Rx2};
+  }
+  \newcommand{\osa}[2]{%
+    \draw[skyrenRed, line width=0.8pt] (#1-1.3,#2) -- (#1+1.3,#2)
+      (#1,#2-1.3) -- (#1,#2+1.3);
+  }
+  % B: plná čočka nad Rx1, seříznutá 12 mm od osy
+  \begin{scope}
+    \deska
+    \begin{scope}
+      \clip (23.25,-8) rectangle (56,31);
+      \draw[skyrenRed, line width=0.9pt] (35.25,11.1) circle (17.5);
+    \end{scope}
+    \draw[skyrenRed, line width=0.9pt] (23.25,-1.64) -- (23.25,23.84);
+    \osa{35.25}{11.1}
+    \node[anchor=north west] at (0,29) {\skyrenth{B}};
+  \end{scope}
+  % C: dělená čočka, osy nad Tx a Rx1
+  \begin{scope}[xshift=64mm]
+    \deska
+    \draw[skyrenRed, line width=0.9pt] (23.8,10.625) circle (17.5);
+    \draw[skyrenRed, line width=0.9pt] (24.52,-6.86) -- (23.08,28.11);
+    \osa{12.35}{10.15}
+    \osa{35.25}{11.1}
+    \node[anchor=north west] at (0,29) {\skyrenth{C}};
+    \node[anchor=south west] at (23.6,24.5) {šev};
+  \end{scope}
+\end{tikzpicture}
+\end{skyrenfigure}
+
+Svazky konfigurací nejsou kruhové a~vysílač s~přijímačem je nemají stejné.
+Model z~dílu Odraz od plošného cíle se na to rozšíří dvěma kroky. V~každé
+rovině se dvoucestný diagram spočte jako součin diagramů vysílače
+a~přijímače. Posun i~kolísání pak sečtou příspěvky obou rovin (vzorce
+v~příloze Přehled vzorců). Z~toho plyne \skyrenterm{ekvivalentní svazek}
+v~tabulce: kruhový svazek, který by dal stejný dvoucestný diagram, kdyby ho
+měl vysílač i~přijímač.
+
+\begin{skyrentable}{5}{Konfigurace LD2450 pro vývoj proti cílovému návrhu.
+Zisky jsou odhady z~geometrie, kolísání jednoho měření na drsné zdi ve 5\,m
+při náklonu 15$^\circ$ plyne z~modelu. U~C platí první číslo pro náklon
+v~úzké rovině svazku.}
+\skyrenth{Konfigurace} & \skyrenth{Ekv. svazek} & \skyrenth{$G_\mathrm{t}+G_\mathrm{r}$} & \skyrenth{Kolísání} & \skyrenth{Vyzářený výkon} \\
+\midrule
+A: bez čočky & 41\,$\times$\,90$^\circ$ & 18\,dB & 86\,cm & beze změny \\
+B: čočka nad Rx1 & 27\,$\times$\,30$^\circ$ & 25\,dB & 23--25\,cm & beze změny \\
+C: dělená čočka & 23\,$\times$\,46$^\circ$ & 26\,dB & 27 / 40\,cm & +4\,dB \\
+cílový návrh & 22\,$\times$\,22$^\circ$ & 32 $-$ 7\,dB & 17\,cm & vysílač $\leq$\,4\,dBm \\
+\end{skyrentable}
+
+Konfigurace B vychází nejblíž cíli. Rozpočet výkonu má stejný: cílová deska
+ztratí 7\,dB ve vazebníku, B stejných 7\,dB tím, že vysílač nemá čočku.
+Svazek je o~čtvrtinu až o~třetinu širší a~model proto předpovídá kolísání
+asi 1,4krát větší než u~cíle. Konfigurace C se hodí na jiný test: otočením
+modulu o~90$^\circ$ se náklon přesune z~úzké roviny svazku do široké
+a~model předpovídá, že kolísání vzroste asi 1,5krát. Obě varianty čočky
+vytvoří model \skyrencmd{hw/lens/lens\_24ghz.scad} s~parametrem
+\skyrencmd{cut}, nebo \skyrencmd{sep}.
 
 \begin{skyrentakeaway}
-Rozbor modulu LD2450 je nejlevnější cesta k~dokumentaci čipu i~k~prvnímu
-změřenému prototypu. Výsledkem prvního kola mají být čísla, která nahradí
-výpočty a~simulace v~tomto dokumentu --- hlavně chování na drsné nakloněné
-ploše --- a~podklady pro vlastní desku $\varnothing$\,35\,mm.
+Fotky potvrdily 1T2R a~pouzdro QFN-32 4\,$\times$\,4\,mm, typ čipu ale ne:
+LD2450 nese potisk Hi-Link. Vývoj s~čočkou poběží v~konfiguraci B, s~čočkou
+jen nad přijímačem: rozpočet výkonu jako cílový návrh, ekvivalentní svazek
+27--30$^\circ$ a~vyzářený výkon beze změny. LD2451 s~vysílací anténou kolem
+16\,dBi je reference pro nastavení výkonu a~jeho samostatný mikrokontrolér
+slibný cíl pro čtení firmwaru.
 \end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenchapter[\skyrenmodehowto]{Praxe}{Od modulu k~prototypu}
+% ===========================================================================
+
+\begin{skyrenglance}
+Osm etap vede od oživení hotových modulů po změřenou přesnost na zdi
+a~rozhodnutí o~vlastní desce. Každá má výstup a~kritérium; dvě brány
+rozhodují, jestli se pokračuje. Pořadí určují závislosti: bez surových dat
+nejde změřit čočku a~bez změřeného svazku nejde ověřit speckle. Výsledky
+patří do měřicího protokolu v~příloze.
+\end{skyrenglance}
+
+\section{Plán a~brány}
+\skyrenlead{Tři skupiny etap, mezi nimi dvě rozhodnutí. Tabulka říká, co má
+po každé etapě existovat.}
+
+Tok práce ukazuje obr.~\ref{fig:etapy}. \textbf{Brána~1} po etapě~3 se ptá,
+jestli čip běží s~naší rampou. Když ne, zbývá dokumentace pod NDA od výrobce,
+nebo záložní varianta s~BGT24MTR11 a~veřejnou dokumentací (díl Návrh).
+\textbf{Brána~2} po etapách 4--7 se ptá, jestli měření sedí s~modelem
+a~čočka s~výpočtem. Teprve pak má smysl kreslit vlastní desku.
+
+
+
+\begin{skyrentable}{3}{Etapy. Výstup musí po etapě existovat; kritérium
+rozhoduje, jestli se pokračuje.}
+\skyrenth{Etapa} & \skyrenth{Výstup} & \skyrenth{Hotovo, když} \\
+\midrule
+1 oživení & záznam původního výstupu obou modulů & oba stabilně hlásí odražeč \\
+2 mapování desky & schéma, role čipů, vývody & víme, kudy k~firmwaru \\
+3 firmware čipu & inicializace, vlastní firmware & čip běží s~naší rampou \\
+4 surová data & spektra, kalibrace, SNR & zbytky pod 1\,cm, SNR do $\pm$\,6\,dB \\
+5 čočka a~svazek & index lomu, výška, diagram & svazek do $\pm$\,20\,\%, zisk do $\pm$\,3\,dB \\
+6 přesnost & posun a~kolísání na čtyřech cílech & model do $\pm$\,30\,\% \\
+7 pohyb a~časování & rozdíl ramp, frekvence, latence & rozdíl $\propto vT$ do $\pm$\,10\,\%, $\geq$\,4\,kHz \\
+8 vlastní deska & rozhodnutí, podklady & obě brány prošly \\
+\end{skyrentable}
+
+\begin{skyrenfigure}{Etapy praktické části. Vodorovně se pokračuje, když
+brána projde; dolů vede náhradní cesta. Etapy 5--7 lze po etapě~4 dělat
+souběžně.}{fig:etapy}
+\begin{tikzpicture}[x=1mm, y=1mm, line width=0.8pt,
+  every node/.style={font=\fontsize{7.5}{9.5}\selectfont, align=left}]
+  \draw[skyrenInk] (0,0) rectangle (32,26);
+  \node[anchor=north west] at (1.5,24.5) {\skyrenth{Poznat modul}};
+  \node[anchor=north west] at (1.5,18.5) {1 oživení\\2 mapování desky\\3 firmware čipu};
+  \draw[skyrenNeutral600, ->] (32,13) -- (36,13);
+  \draw[skyrenRed] (36,13) -- (41,18) -- (46,13) -- (41,8) -- cycle;
+  \node[align=center] at (41,13) {1};
+  \node[anchor=south, align=center] at (41,18.5) {čip\\ovládáme?};
+  \draw[skyrenNeutral600, ->] (46,13) -- (50,13);
+  \draw[skyrenInk] (50,0) rectangle (90,26);
+  \node[anchor=north west] at (51.5,24.5) {\skyrenth{Změřit}};
+  \node[anchor=north west] at (51.5,18.5)
+    {4 surová data a~kalibrace\\5 čočka a~svazek\\6 přesnost na plochách\\7 pohyb a~časování};
+  \draw[skyrenNeutral600, ->] (90,13) -- (94,13);
+  \draw[skyrenRed] (94,13) -- (99,18) -- (104,13) -- (99,8) -- cycle;
+  \node[align=center] at (99,13) {2};
+  \node[anchor=south, align=center] at (99,18.5) {model\\sedí?};
+  \draw[skyrenNeutral600, ->] (104,13) -- (108,13);
+  \draw[skyrenInk] (108,0) rectangle (128,26);
+  \node[anchor=north west] at (109.5,24.5) {\skyrenth{Stavět}};
+  \node[anchor=north west] at (109.5,18.5) {8 vlastní\\deska\\$\varnothing$\,35\,mm};
+  \draw[skyrenNeutral600, ->] (41,8) -- (41,-4);
+  \node[anchor=north, align=center] at (41,-4.5)
+    {záloha BGT24MTR11\\nebo dokumentace pod NDA};
+  \draw[skyrenNeutral600, ->] (99,8) -- (99,-4);
+  \node[anchor=north, align=center] at (99,-4.5)
+    {úprava čočky, nebo užší\\svazek na 60\,GHz};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+\section{Pracoviště a~vybavení}
+\skyrenlead{Stačí levné nástroje na ladění elektroniky a~pár cílů
+z~železářství. Jediná věc na 24\,GHz, kterou sami neověříme, je absolutní
+kmitočet vysílání.}
+
+\par\vspace{4pt}
+\begin{center}\begin{minipage}{\linewidth}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{14mm}>{\raggedright\arraybackslash}p{60mm}}
+\toprule
+\skyrenth{Položka} & \skyrenth{Počet} & \skyrenth{K~čemu} \\
+\midrule
+HLK-LD2450 & 3 & reference, pokusy, dárce čipu \\
+HLK-LD2451 & 1 & reference úzkého svazku a~výkonu \\
+zdroj 5\,V s~omezením proudu, bočník 1\,$\Omega$ & 1 & napájení, časování z~odběru \\
+převodník USB--UART do 1\,Mbd & 1 & výstup modulů \\
+sonda SWD (ST-Link, Raspberry Pi Pico) & 1 & jádro, čtení a~zápis firmwaru \\
+logický analyzátor 24\,MSa/s & 1 & UART, sběrnice při startu \\
+rychlý analyzátor od 100\,MSa/s & 1 & sběrnice se vzorky, je-li \\
+mikroskop nebo makroobjektiv & 1 & potisky čipů \\
+horkovzdušná stanice & 1 & přenos čipu v~etapě~8 \\
+laserový dálkoměr & 1 & referenční vzdálenost \\
+koutový odražeč, hrana 10\,cm & 2 & bodový cíl \\
+plech 1\,$\times$\,1\,m, překližka 18\,mm & po 1 & hladké cíle \\
+lineární vedení 1,5\,m s~vozíkem & 1 & přiblížení ke zdi \\
+otočný stolek, dva stativy & 1 & diagram svazku \\
+3D tiskárna, PETG & 1 & čočky, držáky, destičky \\
+\bottomrule
+\end{tabularx}
+\vspace{2pt}\captionof{table}{Vybavení. Moduly jsou skladem v~ČR, zbytek jsou
+běžné nástroje.}
+\end{minipage}\end{center}\vspace{4pt}
+
+Moduly \skyrencmd{HLK-LD2415H}, \skyrencmd{HW-MS03} a~\skyrencmd{RCWL-0516}
+dál nepoužíváme: jsou to dopplerovské senzory s~nemodulovanou vlnou, které
+měří jen pohyb, ne vzdálenost.
+
+Cíle mají svoje podmínky. \skyrenterm{Koutový odražeč} ze tří navzájem
+kolmých trojúhelníkových desek vrací odraz zpět ke zdroji v~širokém rozsahu
+úhlů. Chová se jako bodový cíl se známým radarovým průřezem
+$\sigma = 4\pi a^4/(3\lambda^2)$, s~hranou $a = 10$\,cm 2,7\,m$^2$. Pro
+měření diagramu musí stát v~dalekém poli, s~touto hranou dál než asi
+3,5\,m; pro kalibraci vzdálenosti stačí blíž, protože odraz se vždy jeví
+z~vrcholu odražeče. Hladkému plechu stačí několik Fresnelových zón: v~5\,m
+má první zóna poloměr 18\,cm, takže plech 1\,$\times$\,1\,m je pro zrcadlový
+odraz nekonečný. Drsná zeď naopak musí přesahovat celou stopu svazku, ve
+5\,m se svazkem konfigurace B kolem 2,7\,m v~průměru.
+
+
+\section{Pravidla pro vysílání při vývoji}
+\skyrenlead{Pásmo a~limit vyzářeného výkonu platí i~pro prototyp na stole.}
+
+Vysíláme jen v~pásmu 24,00--24,25\,GHz a~s~EIRP nejvýš 20\,dBm (díl Anténa
+a~čočka). V~Česku je rámcem všeobecné oprávnění ČTÚ pro zařízení krátkého
+dosahu, jehož aktuální znění je třeba ověřit. Konfigurace A a~B vysílač
+nemění, vyzářený výkon zůstává jako u~hotového modulu. Konfigurace C přidá
+vysílači kolem 4\,dB zisku a~vlastní deska s~čočkou 16\,dBi smí vysílat
+nejvýš 4\,dBm.
+
+S~vlastním firmwarem nastavujeme kmitočet rampy sami. Bez analyzátoru
+spektra změříme jen šířku přeladění, a~to z~kalibrace v~etapě~4; polohu
+v~pásmu ne. Proto přebíráme počáteční kmitočet z~původního firmwaru
+a~měníme jen délku a~tvar rampy. Před delším provozem vlastního profilu
+jednou změříme spektrum zapůjčeným analyzátorem do 26,5\,GHz s~trychtýřovou
+anténou.
+
+Hotový modul má shodu CE/RED pro původní firmware a~anténu. Změnou profilu
+vysílání nebo přidáním čočky přechází odpovědnost za shodu na nás. Pro vývoj
+to nevadí, pro prodej ano.
+
+\section{Etapa 1: oživení s~původním firmwarem}
+\skyrenlead{Než modul otevřeme, zaznamenáme, co umí v~původním stavu. Po
+každé úpravě pak víme, co jsme změnili.}
+
+\begin{enumerate}
+\item Připojit LD2450 konektorem \cislo{11} (obr.~\ref{fig:ld2450b}) na zdroj
+  5\,V s~omezením proudu na 300\,mA a~na převodník USB--UART nastavený na
+  256\,000\,Bd, 8N1. Změřit odběr.
+\item Zapisovat výstup do souboru s~časovou značkou každého rámce. Podle
+  dokumentace výrobce začíná rámec bajty \skyrencmd{AA FF 03 00}, nese tři
+  cíle (souřadnice $x$ a~$y$ v~mm, rychlost v~cm/s) a~končí
+  \skyrencmd{55 CC}; formát ověříme na záznamu.
+\item Postavit koutový odražeč na stativ do 2 a~4\,m, ve stejné výšce jako
+  senzor, a~zaznamenat po 60\,s. Z~časových značek určit frekvenci výstupu,
+  z~hodnot rozptyl a~odchylku od laserového dálkoměru.
+\item Zapojit do přívodu 5\,V bočník 1\,$\Omega$ a~zaznamenat průběh
+  odběru (viz tip).
+\item V~aplikaci výrobce přes Bluetooth zapsat verzi firmwaru a~všechna
+  nastavení.
+\item Totéž udělat s~LD2451 podle jeho dokumentace.
+\end{enumerate}
+
+\textbf{Výstup:} záznamy obou modulů a~tabulka frekvence výstupu, rozptylu
+a~odchylky. \textbf{Hotovo, když} oba moduly stabilně hlásí odražeč na
+správné vzdálenosti.
+
+\begin{skyrentip}[ČASOVÁNÍ RAMPY Z~ODBĚRU]
+Vysílač a~přijímač se zapínají po rámcích chirpů a~každý rámec je vidět jako
+proudový pulz. Bočník 1\,$\Omega$ v~přívodu a~osciloskop nebo analogový
+vstup analyzátoru tak ukážou periodu i~délku rámců ještě před prvním řádkem
+vlastního kódu.
+\end{skyrentip}
+
+\section{Etapa 2: mapování desky}
+\skyrenlead{Z~hypotéz dílu Rozbor uděláme zapojení: který čip nese firmware,
+jak se k~němu připojit a~kudy teče komunikace mezi čipy.}
+
+\begin{enumerate}
+\item Nafotit všechny čipy obou modulů makroobjektivem nebo mikroskopem se
+  světlem dopadajícím pod malým úhlem a~přečíst potisky.
+\item Na modulu bez napájení prozvonit linky TX a~RX konektoru \cislo{11}
+  (na který čip vedou), krystal \cislo{6} (na které vývody \cislo{1})
+  a~plošky \cislo{3} a~\cislo{4}.
+\item Spočítat linky mezi \cislo{1} a~\cislo{8}. Dvě znamenají UART, čtyři
+  a~víc sběrnici SPI nebo podobnou. Tím se rozhodne mezi hypotézami z~dílu
+  Rozbor.
+\item Za provozu změřit napětí za měničem \cislo{5} a~stabilizátorem
+  \cislo{7}.
+\item Připojit plošky DM, DP, 5\,V a~GND na kabel USB a~sledovat, jestli se
+  modul přihlásí jako zařízení USB. Zopakovat s~PA9 připojeným přes
+  10\,k$\Omega$ na zem a~pak na 3,3\,V, protože zavaděče často čtou úroveň
+  vývodu po resetu. Identifikátor výrobce USB prozradí výrobce čipu.
+\item Na LD2451 najít u~plošek \cislo{7} (obr.~\ref{fig:ld2451b}) zem
+  a~napájení; zbylé dvě jsou kandidáti na datovou a~hodinovou linku SWD.
+\item Zapojení obou modulů zakreslit do schématu v~KiCadu
+  (\skyrencmd{hw/ld2450/}, \skyrencmd{hw/ld2451/}).
+\end{enumerate}
+
+\textbf{Výstup:} schéma, role obou čipů a~seznam vývodů radarového čipu
+(vysokofrekvenční, napájení, krystal, rozhraní). \textbf{Hotovo, když} víme,
+který čip nese firmware a~jak se k~němu připojit.
+
+\section{Etapa 3: firmware a~inicializace čipu}
+\skyrenlead{Cílem je spustit čip s~vlastní rampou. Cesta vede přes přečtený
+firmware, nebo přes odposlech sběrnice mezi čipy.}
+
+\begin{enumerate}
+\item Připojit sondu \skyrenterm{SWD} (dvouvodičové ladicí rozhraní procesorů
+  ARM Cortex-M) k~čipu s~firmwarem a~přečíst identifikaci ladicího portu. Ta
+  určí jádro procesoru i~bez čitelného potisku.
+\item Zkusit přečíst celou paměť flash. Brání-li tomu \skyrenterm{ochrana
+  čtení}, nic nemazat (viz varování) a~pokračovat krokem~4.
+\item Ve firmwaru najít tabulku zápisů do registrů radarového čipu, obvykle
+  dvojice adresa--hodnota posílané po startu.
+\item Nejde-li firmware přečíst a~mezi čipy vede sběrnice, zaznamenat
+  analyzátorem start modulu. Pak přes příkazy výrobce změnit jedno nastavení
+  (dosah, citlivost) a~záznam zopakovat. Rozdíl dvou záznamů ukáže, které
+  registry nesou které nastavení; tomu se říká \skyrenterm{diferenciální
+  záznam}.
+\item Z~registrů rampy určit šířku přeladění, délku chirpu a~počet vzorků
+  původního firmwaru. Vyjde-li přeladění širší než 250\,MHz, modul v~EU
+  nesmí vysílat ani v~původním stavu.
+\item Nahrát vlastní firmware s~původní inicializací a~ověřit, že výstup
+  sedí s~etapou~1. Teprve pak měnit rampu: trojúhelníková, uvnitř
+  24,00--24,25\,GHz, s~nejkratším chirpem, který čip přijme.
+\end{enumerate}
+
+\textbf{Výstup:} inicializační sekvence, popis registrů rampy, vlastní
+firmware. \textbf{Hotovo, když} čip běží s~naší trojúhelníkovou rampou
+(brána~1).
+
+\begin{skyrenwarning}[ODEMČENÍ OCHRANY ČTENÍ SMAŽE FIRMWARE]
+U~většiny mikrokontrolérů se ochrana čtení zruší jen smazáním celé paměti,
+i~s~inicializací radarového čipu, kterou hledáme. Krok je nevratný. Dělá se
+jen na modulu určeném k~pokusům a~až poté, co máme záznam sběrnice nebo
+přečtený firmware z~jiného kusu. Jeden modul zůstává vždy nedotčený jako
+reference.
+\end{skyrenwarning}
+
+\section{Etapa 4: surová data a~kalibrace vzdálenosti}
+\skyrenlead{První spektrum v~počítači a~převod kmitočtu na vzdálenost
+změřený, ne spočítaný.}
+
+\begin{enumerate}
+\item Posílat do počítače surové vzorky I/Q obou přijímačů z~vybraných
+  chirpů, z~vlastního firmwaru přes UART nebo USB.
+\item Zpracovat je stejně jako simulace v~\skyrencmd{sim/}: Hannovo okno,
+  FFT, parabolická interpolace vrcholu.
+\item Koutový odražeč postupně postavit do 1, 2, 3, 4 a~5\,m, s~laserovým
+  dálkoměrem jako referencí, a~naměřené vzdálenosti proložit přímkou. Sklon
+  ukáže chybu poměru $B/T$, posun polohu fázového středu a~zpoždění v~čipu.
+\item Změřit SNR vrcholu odražeče proti šumu okolních buněk a~porovnat ho
+  s~předpovědí (příklad). Rozdíl dá jedno číslo za dvě neznámé: vysílací
+  výkon minus šumové číslo.
+\item Zaznamenat \skyrenterm{prázdnou scénu} bez odražeče. Co v~jeho buňce
+  zbude, je odraz okolí; odražeč ho má převyšovat aspoň o~20\,dB.
+\item Změřit vazbu vysílače do přijímače jako vrchol u~nulového kmitočtu
+  a~z~histogramu vzorků ověřit, že převodník neořezává.
+\end{enumerate}
+
+\textbf{Výstup:} kalibrační konstanty, SNR a~úroveň vazby. \textbf{Hotovo,
+když} zbytky po kalibraci jsou od 1 do 5\,m pod 1\,cm a~SNR je do
+$\pm$\,6\,dB od předpovědi.
+
+\begin{skyrenexample}[SNR KOUTOVÉHO ODRAŽEČE]
+LD2450 bez čočky (zisky 2\,$\times$\,9\,dBi), vysílač 4\,dBm, odražeč
+s~hranou 10\,cm ($\sigma = 2{,}7$\,m$^2$) ve 2\,m: radarová rovnice pro
+bodový cíl dá $P_\mathrm{r} \approx -57$\,dBm. Šum na buňku je pro chirp
+10\,\textmu s a~šumové číslo 15\,dB $-107$\,dBm, takže SNR vychází kolem
+50\,dB. Při chirpu 100\,\textmu s klesne šum o~10\,dB a~SNR stoupne na
+60\,dB.
+\end{skyrenexample}
+
+\section{Etapa 5: čočka a~svazek}
+\skyrenlead{Čočka se ladí měřením: index lomu, výška nad anténou, diagram
+a~trubka proti přesahu.}
+
+\begin{enumerate}
+\item Vytisknout destičku 60\,$\times$\,60\,$\times$\,10\,mm se stejným
+  nastavením jako čočku (PETG, 100\,\% výplň) a~změřit index lomu (příklad).
+\item Přepočítat model s~naměřeným $n$ a~vytisknout čočku pro konfiguraci B
+  (\skyrencmd{-D cut=12}), případně C (\skyrencmd{-D sep=23}).
+\item Čočku uložit do držáku s~podložkami po 0,5\,mm. Odražeč postavit do
+  osy ve 3,5\,m, výšku čočky měnit v~rozsahu $\pm$\,3\,mm kolem výpočtu
+  a~ponechat tu s~nejvyšším SNR.
+\item Senzor postavit na otočný stolek, odražeč do 3,5\,m nebo dál,
+  a~změřit amplitudu vrcholu v~rozsahu $\pm$\,40$^\circ$ po 2$^\circ$ v~obou
+  rovinách, v~konfiguraci A i~B. Diagram B dělený odmocninou diagramu A dá
+  jednocestný diagram čočky, protože holý vysílač a~holý přijímač mají
+  podobné svazky.
+\item Mezi modul a~čočku postupně vložit trubku bez výstelky, s~hliníkovou
+  páskou a~s~vodivou pěnou z~antistatického obalu. Porovnat vazbu u~nulového
+  kmitočtu a~boční laloky diagramu.
+\end{enumerate}
+
+\textbf{Výstup:} index lomu, optimální výška, diagram a~volba trubky.
+\textbf{Hotovo, když} šířka svazku sedí s~výpočtem do $\pm$\,20\,\%
+a~zisk přijímače vzroste proti holému Rx o~7\,$\pm$\,3\,dB.
+
+\begin{skyrenexample}[INDEX LOMU ZMĚŘÍ RADAR SÁM]
+Plech stojí ve 2\,m, do svazku se vloží destička tloušťky $t = 10$\,mm.
+Zdánlivá vzdálenost se prodlouží o~$(n-1)\,t$; prodloužení 6,2\,mm znamená
+$n = 1{,}62$. Při SNR 60\,dB má rozdíl dvou měření rozptyl kolem 0,5\,mm,
+tedy $n$ na $\pm$\,0,05; průměry ze sta měření dají $\pm$\,0,005. Fáze
+vrcholu je ještě přesnější: prodloužení o~6,2\,mm ji otočí právě o~$2\pi$,
+poloha vrcholu tedy rozhodne jen o~počtu otáček.
+\end{skyrenexample}
+
+\section{Etapa 6: přesnost na plošných cílech}
+\skyrenlead{Hlavní měření studie: posun a~kolísání na hladkých a~drsných
+plochách, kolmo a~při náklonu.}
+
+\begin{skyrenfigure}{Sestava pro etapu~6 při pohledu shora, bez měřítka.
+Senzor a~laserový dálkoměr jedou na vozíku po vedení ke zdi, zeď je
+nakloněná o~$\alpha$ proti kolmici k~vedení. Červeně stopa
+svazku.}{fig:sestava}
+\begin{tikzpicture}[x=1mm, y=1mm, line width=0.8pt,
+  every node/.style={font=\fontsize{8}{10}\selectfont}]
+  \fill[skyrenNeutral400] (0,-1.5) rectangle (60,1.5);
+  \node[anchor=north] at (20,-2.5) {lineární vedení 1,5\,m};
+  \draw[skyrenInk, fill=skyrenSurface] (38,-4) rectangle (48,4);
+  \draw[skyrenInk, fill=skyrenNeutral600] (48,-3) rectangle (51,3);
+  \node[anchor=south] at (43,4.5) {radar + laser};
+  \draw[skyrenNeutral600, ->] (26,13) -- (48,13)
+    node[midway, anchor=south] {posuv po 1\,cm, $L = 1{,}2$\,m};
+  \draw[skyrenNeutral600, dashed, line width=0.6pt] (51,0) -- (100,0);
+  \draw[skyrenNeutral600, line width=0.6pt] (51,0) -- (102.7,10.05);
+  \draw[skyrenNeutral600, line width=0.6pt] (51,0) -- (97.6,-9.05);
+  \draw[skyrenInk, line width=2.2pt] (94.3,-21.3) -- (105.7,21.3);
+  \node[anchor=west] at (104,-14) {zeď};
+  \draw[skyrenRed, line width=2.2pt] (97.6,-9.05) -- (102.7,10.05);
+  \draw[skyrenNeutral600, dashed, line width=0.6pt] (100,0) -- (80.7,5.2);
+  \draw[skyrenNeutral600, line width=0.6pt]
+    (100,0) ++(165:14) arc[start angle=165, end angle=180, radius=14];
+  \node at ($(100,0)+(172.5:17.5)$) {$\alpha$};
+  \draw[skyrenNeutral600, line width=0.6pt] (51,-24) -- (100,-24);
+  \draw[skyrenNeutral600, line width=0.6pt] (51,-22.5) -- (51,-25.5);
+  \draw[skyrenNeutral600, line width=0.6pt] (100,-22.5) -- (100,-25.5);
+  \node[anchor=north] at (75.5,-24.5) {$R$ = 2 nebo 5\,m};
+\end{tikzpicture}
+\end{skyrenfigure}
+
+\begin{enumerate}
+\item Připravit cíle: plech 1\,$\times$\,1\,m, překližku 18\,mm, hladkou
+  omítnutou zeď a~neomítnutou cihlovou zeď.
+\item Senzor v~konfiguraci B a~laserový dálkoměr upevnit na vozík lineárního
+  vedení ve výšce aspoň 1,2\,m (obr.~\ref{fig:sestava}). Svazek nesmí mířit
+  na podlahu ani stěny v~dosahu cíle; ve 2\,m to v~běžné místnosti jde, ve
+  5\,m je potřeba velká hala nebo venkovní zeď.
+\item V~klidu udělat tisíc měření v~jedné poloze. Jejich rozptyl je šum,
+  který má při změřeném SNR vyjít kolem $0{,}6\,\Delta R/\sqrt{\mathrm{SNR}}$
+  (díl Teorie: signál).
+\item Pak vozík posouvat po 1\,cm přes 1,2\,m a~v~každé ze 120 poloh
+  zprůměrovat deset měření. Statistika přes polohy dá posun $b$, kolísání
+  $s_R$ jednoho měření a~chybu průměru přes celou dráhu. Jízdu opakovat
+  pětkrát s~vedením posunutým pokaždé o~20\,cm do strany: jedna jízda dává
+  ve 5\,m jen asi osm nezávislých realizací speckle.
+\item Měřit kolmo a~s~vedením natočeným o~15$^\circ$ proti kolmici ke zdi,
+  ve 2 a~5\,m. U~konfigurace C navíc s~modulem otočeným o~90$^\circ$.
+\item Výsledky porovnat s~předpovědí pro použitou konfiguraci (příloha Měřicí
+  protokol).
+\end{enumerate}
+
+\textbf{Výstup:} tabulka posunu, kolísání a~chyby průměru pro každý cíl
+a~náklon. \textbf{Hotovo, když} kolísání i~chyba průměru sedí s~modelem do
+$\pm$\,30\,\% (brána~2). Pak lze čísla z~dílu Návrh použít pro vlastní
+desku.
+
+\begin{skyrengotcha}[TISÍC MĚŘENÍ Z~JEDNOHO MÍSTA SPECKLE NEZMĚŘÍ]
+V~klidu je speckle zamrzlý. Tisíc měření z~jedné polohy dá malý rozptyl
+a~k~němu pevnou chybu, která s~kolísáním z~modelu nesouvisí. Proto se
+přibližuje po centimetrech: speckle se mění s~dráhou, ne s~časem, a~pomalý
+posun přes 1,2\,m nahradí 5\,ms přiblížení při 240\,m/s.
+\end{skyrengotcha}
+
+\section{Etapa 7: pohyb, Doppler a~časování}
+\skyrenlead{Rychlost 240\,m/s v~laboratoři nevyrobíme. Dopplerův posuv
+odhadu ale závisí jen na součinu $vT$, takže delší chirp a~pomalý cíl dají
+stejný efekt.}
+
+Posun odhadu $\Delta R_\mathrm{D} = vcT/(\lambda B)$ je při 240\,m/s
+a~chirpu 10\,\textmu s stejný jako při 24\,m/s a~100\,\textmu s. Pro plech
+tažený rychlostí 2\,m/s a~chirp 100\,\textmu s předpovídá model rozdíl mezi
+klesající a~stoupající rampou $2\Delta R_\mathrm{D} = 3{,}9$\,cm. Na plechu
+s~SNR přes 50\,dB je šum jednoho měření kolem milimetru, takže rozdíl je
+dobře měřitelný.
+
+\begin{enumerate}
+\item Nastavit trojúhelníkovou rampu s~dlouhým chirpem, 100\,\textmu s,
+  pokud ho čip přijme.
+\item Plech 0,5\,$\times$\,0,5\,m na vozíku vedení táhnout k~senzoru
+  rychlostí 1--3\,m/s. Rychlost určit z~toho, jak se s~časem mění průměr
+  obou ramp.
+\item Porovnat rozdíl $R_\downarrow - R_\uparrow$ s~předpovědí
+  $2vcT/(\lambda B)$ a~ověřit, že průměr ramp sleduje trajektorii bez
+  posunu.
+\item Zopakovat s~chirpem 10\,\textmu s: rozdíl musí klesnout desetkrát.
+\item Vlastní firmware přepne vývod na začátku každé dvojice chirpů a~po
+  odeslání výsledku. Analyzátor z~toho změří frekvenci měření, latenci a~její
+  rozptyl.
+\end{enumerate}
+
+\textbf{Výstup:} rozdíl ramp proti $vT$, frekvence měření a~latence.
+\textbf{Hotovo, když} rozdíl ramp odpovídá $vT$ do $\pm$\,10\,\%, frekvence
+měření je aspoň 4\,kHz a~rozptyl latence je pod 50\,\textmu s. Stálou
+latenci jde vykompenzovat výpočtem, její rozptyl ne: 50\,\textmu s při
+240\,m/s znamená 1,2\,cm. Zkouška při skutečné rychlosti patří až na
+cílovou aplikaci.
+
+\section{Etapa 8: rozhodnutí o~vlastní desce}
+\skyrenlead{Vlastní deska $\varnothing$\,35\,mm má smysl, až když projdou obě
+brány.}
+
+\begin{enumerate}
+\item Zkontrolovat podmínky: čip běží s~vlastní rampou (etapa~3), čočka sedí
+  s~výpočtem (etapa~5), model speckle sedí s~měřením (etapa~6).
+\item Navrhnout desku podle zapojení z~etapy~2: radarový čip s~krystalem
+  a~stabilizátorem, vazebník rat-race, jednu anténu pod čočkou
+  a~mikrokontrolér, pokud radarový čip nemá vlastní procesor.
+\item Pro první kusy přenést radarový čip z~modulů LD2450 horkým vzduchem,
+  dokud nemáme nabídku od výrobce. Je-li čip SoC s~vlastní pamětí, přenese se
+  s~ním i~jeho firmware.
+\item Na vlastní desce zopakovat etapy 4--7. Teprve tato čísla nahradí
+  výpočty v~dílu Návrh.
+\end{enumerate}
+
+Neprojde-li brána~2 kvůli čočce, pomůže úprava výšky nebo trubky. Rozchází-li
+se model s~měřením na drsných plochách, je na místě přehodnotit svazek:
+10$^\circ$ se do $\varnothing$\,35\,mm vejde jen na 60\,GHz (díl Návrh).
+
+\begin{skyrentakeaway}
+Praktická část stojí na dvou rozhodnutích: jestli ovládneme čip (etapa~3)
+a~jestli model speckle sedí s~měřením na skutečné zdi (etapa~6). Ostatní
+etapy k~nim vedou. Vývojová platforma je LD2450 s~čočkou jen nad
+přijímačem; každé měření se zapisuje do protokolu v~příloze vedle
+předpovědi, kterou ověřuje.
+\end{skyrentakeaway}
+
+% ===========================================================================
+\skyrenappendix{Měřicí protokol}
+% ===========================================================================
+
+Každý řádek páruje veličinu, kterou změří díl Praxe, s~předpovědí ze studie.
+Číslo na začátku řádku je etapa. Sloupec Naměřeno se vyplní během etap
+a~podle něj se aktualizuje díl Návrh. Předpovědi pro drsné plochy platí pro
+konfiguraci B, případně C, a~pro model z~dílu Odraz od plošného cíle
+rozšířený na eliptický svazek.
+
+\par\vspace{4pt}
+\begin{center}\begin{minipage}{\linewidth}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{40mm}p{30mm}}
+\toprule
+\skyrenth{Veličina} & \skyrenth{Předpověď} & \skyrenth{Naměřeno} \\
+\midrule
+\textbf{1} frekvence výstupu, původní firmware LD2450 & --- & \\
+\textbf{2} rozestup středů Tx a~Rx1, LD2450 & 23\,mm (z~fotky) & \\
+\textbf{2--3} jádro a~paměť čipu s~firmwarem & --- & \\
+\textbf{3} šířka přeladění, původní firmware & $\leq$\,250\,MHz & \\
+\textbf{3} nejkratší chirp, který čip přijme & cíl 10\,\textmu s & \\
+\textbf{4} zbytky kalibrace vzdálenosti 1--5\,m & $<$\,1\,cm & \\
+\textbf{4} SNR odražeče 10\,cm ve 2\,m, A, chirp 10\,\textmu s & 50\,dB při 4\,dBm a~$F = 15$\,dB & \\
+\textbf{4} vazba Tx--Rx proti vrcholu odražeče & --- & \\
+\bottomrule
+\end{tabularx}
+\vspace{2pt}\captionof{table}{Modul, čip a~signál.}
+\end{minipage}\end{center}\vspace{4pt}
+
+\par\vspace{4pt}
+\begin{center}\begin{minipage}{\linewidth}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{40mm}p{30mm}}
+\toprule
+\skyrenth{Veličina} & \skyrenth{Předpověď} & \skyrenth{Naměřeno} \\
+\midrule
+\textbf{5} index lomu PETG, 100\,\% výplň & $\approx$\,1,62 & \\
+\textbf{5} výška rovné plochy nad anténou & 36\,mm (C: 38\,mm) & \\
+\textbf{5} šířka svazku čočky & 21--23$^\circ$ & \\
+\textbf{5} přírůstek zisku proti holému Rx & +7\,dB & \\
+\textbf{6} šum v~klidu proti $0{,}6\,\Delta R/\sqrt{\mathrm{SNR}}$ & poměr 1,0 & \\
+\textbf{6} posun $b$, cihla, B, kolmo, 2 / 5\,m & 4,6 / 11\,cm & \\
+\textbf{6} kolísání $s_R$, cihla, B, 2\,m & 4,6 / 9--10\,cm & \\
+\textbf{6} kolísání $s_R$, cihla, B, 5\,m & 11 / 23--25\,cm & \\
+\textbf{6} chyba průměru přes 1,2\,m, cihla, B, 5\,m & 3,8 / 5,5\,cm & \\
+\textbf{6} kolísání $s_R$, cihla, C, 2\,m, 15$^\circ$ v~úzké / široké rovině & 11 / 16\,cm & \\
+\textbf{6} posun překližky 18\,mm proti plechu & $\approx$\,1\,cm & \\
+\textbf{7} rozdíl ramp, 2\,m/s, chirp 100\,\textmu s & 3,9\,cm & \\
+\textbf{7} frekvence měření, vlastní firmware & $\geq$\,4\,kHz & \\
+\textbf{7} rozptyl latence & $<$\,50\,\textmu s & \\
+\bottomrule
+\end{tabularx}
+\vspace{2pt}\captionof{table}{Čočka, přesnost a~pohyb. Dvě čísla oddělená lomítkem
+platí pro kolmou zeď a~náklon 15$^\circ$, není-li řečeno jinak.}
+\end{minipage}\end{center}\vspace{4pt}
 
 % ===========================================================================
 \skyrenappendix{Přehled vzorců}
 % ===========================================================================
 
-Vztahy z~teoretických dílů a~z~návrhu na jednom místě. $c$ je rychlost světla,
+Vztahy z~teoretických dílů, z~návrhu a~z~rozboru modulů na jednom místě. $c$ je rychlost světla,
 $\lambda$ vlnová délka, $B$ šířka přeladění, $T$ délka chirpu, $R$ vzdálenost.
 
 \begin{skyrendeflist}{Veličina}{Vztah}
@@ -1068,6 +1826,10 @@ profil čočky & $r^2 = 2(n-1)fz + (n^2-1)z^2$ \\
 odraz na ploše čočky & $|\Gamma|^2 = ((n-1)/(n+1))^2$ \\
 protiodrazná vrstva & $n_\mathrm{m} = \sqrt{n}$, tloušťka $\lambda_0/(4n_\mathrm{m})$ \\
 EIRP & $P_\mathrm{t} + G \leq 20$\,dBm (24,00--24,25\,GHz) \\
+vychýlení svazku zdrojem mimo osu & $\theta \approx d/f$; dva svazky vychýlené na opačné strany ztratí dvoucestně $\approx 24\,(\theta/\theta_3)^2$\,dB \\
+dvoucestný svazek dvou různých antén & v~každé rovině $\sigma_\theta^2 = 1/[8\ln 2\,(\theta_\mathrm{t}^{-2}+\theta_\mathrm{r}^{-2})]$; ekvivalentní svazek $\theta_3 = \sigma_\theta\sqrt{16\ln 2}$ \\
+posun a~kolísání, eliptický svazek & náklon v~rovině $x$: $b = R\,[\sigma_x^2(\tfrac12+\tan^2\alpha)+\tfrac12\sigma_y^2]$, $s_R^2 = R^2\,[\sigma_x^2\tan^2\alpha + 2\sigma_x^4(\tfrac12+\tan^2\alpha)^2 + \tfrac12\sigma_y^4]$ \\
+koutový odražeč & $\sigma = 4\pi a^4/(3\lambda^2)$, $a$ je délka hrany \\
 \end{skyrendeflist}
 
 % ===========================================================================
@@ -1104,6 +1866,8 @@ FSK (několik diskrétních tónů) & milimetrová přesnost pro jeden cíl, ale
 UWB čipy jako radar (DW3000) & velké antény a~široký svazek na 6,5--8\,GHz \\
 využít 1\,GHz modulace S3KM111L & mimo pásmo 24,00--24,25\,GHz je vysílání
   v~EU nelegální \\
+jedna čočka nad celým LD2450 & vysílač a~přijímač jsou 23\,mm od sebe;
+  svazky se vychýlí o~19--22$^\circ$ a~dvoucestně ztratí 18--25\,dB \\
 \end{skyrendeflist}
 
 % ===========================================================================
@@ -1124,17 +1888,23 @@ chybí:
       povrchů na 24\,GHz (orientační hodnoty),
 \item index lomu a~ztrátový činitel tištěných plastů, poloha fázových středů
       antén LD2450,
-\item model speckle je ověřený jen simulací, ne měřením na skutečné zdi,
+\item model speckle je ověřený jen simulací, ne měřením na skutečné zdi;
+      jeho rozšíření na eliptický svazek jen výpočtem, ani simulací,
+\item identita radarových čipů LD2450 (potisk Hi-Link) a~LD2451 (potisk
+      nečitelný) a~role druhého čipu na obou modulech,
+\item rozměry antén modulů z~fotografií ($\pm$\,5\,\%) a~z~nich odhadnuté
+      svazky a~zisky,
 \item chování A121 při rychlosti 240\,m/s,
 \item regulatorní rámec: limit EIRP podle ERC/REC 70-03 a~harmonizované
       normy (ETSI EN 305~550 a~související) v~aktuálním znění.
 \end{itemize}
 
 \subsection{Vstupní data a~simulace}
-Fotodokumentace teardownu Parkside PLEM 20 A4 je ve složce \skyrencmd{img/},
-model čočky v~\skyrencmd{hw/lens/}. Simulace interpolace vrcholu a~speckle
-na drsné zdi jsou ve složce \skyrencmd{sim/}; jsou napsané v~čistém Pythonu
-bez dalších knihoven.
+Fotodokumentace teardownu Parkside PLEM 20 A4 a~modulů HLK-LD2450
+a~LD2451 je ve složce \skyrencmd{img/}, výřezy pro sazbu v~\skyrencmd{docs/fig/}.
+Model čočky včetně dělené a~seříznuté varianty je v~\skyrencmd{hw/lens/}.
+Simulace interpolace vrcholu a~speckle na drsné zdi jsou ve složce
+\skyrencmd{sim/}; jsou napsané v~čistém Pythonu bez dalších knihoven.
 
 \subsection{Zdroje}
 \begin{skyrendeflist}{Zdroj}{Co z~něj pochází}
@@ -1143,6 +1913,10 @@ ICLegend, S3KM111L databrief (Sekorm) & integrovaný 24GHz čip:
 Hi-Link, HLK-LD2450 a~LD2451 & parametry modulů: FMCW, 1T2R, rozměry,
   šířka svazku a~přeladění LD2451 \\
 Hi-Link, HLK-LD2415H & CW dopplerovský modul, důvod vyřazení \\
+Hi-Link, sériový protokol LD2450 & rychlost 256\,000\,Bd, formát výstupního
+  rámce (ověřit na záznamu) \\
+vlastní fotografie, \skyrencmd{img/IMG\_2152}--\skyrencmd{2155} & rozměry
+  antén, součástky a~potisky modulů LD2450 a~LD2451 \\
 Infineon, BGT24MTR11 & 24GHz transceiver pro záložní variantu, ceny RS \\
 Acconeer, A121 & 60GHz pulzní koherentní radar, ceny LCSC a~DigiKey \\
 Infineon, BGT60TR13C & 60GHz čip s~anténou v~pouzdře, šířka pásma 5,5\,GHz \\
@@ -1209,6 +1983,20 @@ EIRP & ekvivalentní izotropně vyzářený výkon; součet vysílacího výkonu
 dToF & přímé měření doby letu pulzu \\
 fázový měřák & měření vzdálenosti z~fázového posuvu modulovaného svazku \\
 pásmo ISM 24\,GHz & volně použitelné pásmo 24,00--24,25\,GHz, šířka 250\,MHz \\
+ploška (patch) & obdélník mědi nad zemní vrstvou desky, rezonující na délce
+  kolem půl vlnové délky v~laminátu \\
+sériově napájená řada & několik plošek za sebou na jednom vedení; dává úzký
+  svazek podél řady \\
+ekvivalentní svazek & kruhový svazek, který by dal stejný dvoucestný
+  diagram, kdyby ho měl vysílač i~přijímač \\
+koutový odražeč & tři navzájem kolmé desky, které vracejí odraz ke zdroji;
+  bodový cíl se známým radarovým průřezem \\
+prázdná scéna & záznam bez cíle, který ukáže odraz okolí v~buňce cíle \\
+SWD & dvouvodičové ladicí rozhraní procesorů ARM Cortex-M \\
+ochrana čtení & zámek paměti mikrokontroléru; obvykle ho zruší jen smazání
+  celé paměti \\
+diferenciální záznam & dva záznamy sběrnice, které se liší jedním
+  nastavením; jejich rozdíl ukáže význam registrů \\
 \end{skyrendeflist}
 
 \end{document}
